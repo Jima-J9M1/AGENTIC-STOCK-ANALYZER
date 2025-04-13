@@ -41,6 +41,33 @@ The codebase is organized to align with the FMP API documentation structure foun
 - **statements.py**: Financial statements (income, balance sheet, cash flow, ratios)
 - **technical_indicators.py**: Technical indicators and analysis
 
+### API Endpoint Standardization
+
+The codebase uses a standardized approach for retrieving quotes across different asset types:
+
+- The unified **quote** endpoint is used for retrieving quotes for all asset types, including:
+  - Stocks
+  - Forex pairs
+  - Cryptocurrencies
+  - Commodities
+  - Market indices
+  
+- Each module provides specialized formatting for its respective asset type:
+  - **get_quote**: Standard stock quotes
+  - **get_forex_quotes**: Currency exchange rates
+  - **get_crypto_quote**: Cryptocurrency prices
+  - **get_commodities_prices**: Commodity prices
+  - **get_index_quote**: Market index values
+
+This standardization improves code maintainability and provides a consistent approach to retrieving asset prices throughout the application.
+
+### Other Recent Changes
+
+- **get_quote_change**: Updated to use the "stock-price-change" endpoint instead of "quote-change" endpoint
+  - Now returns price changes for all time periods (1D, 5D, 1M, 3M, 6M, YTD, 1Y, 3Y, 5Y, 10Y, max) in a single request
+  - Improved table formatting for better readability
+  - Emoji indicators (🔺, 🔻, ➖) for clearer trend visualization
+
 Tests are similarly organized with one test file per module, following a consistent pattern to ensure comprehensive coverage.
 
 ## Installation
@@ -394,6 +421,12 @@ The server uses the following environment variables:
 - `TEST_MODE`: Set to "true" to use mock data in acceptance tests
   - Useful for CI/CD environments or testing without a valid API key
   - Uses mock responses defined in tests/conftest.py
+  - Includes comprehensive mock data for various asset types:
+    - Stocks (AAPL, MSFT, etc.)
+    - Forex pairs (EURUSD, GBPUSD, USDJPY)
+    - Cryptocurrencies (BTCUSD, ETHUSD)
+    - Commodities (GCUSD for Gold, CLUSD for Crude Oil, BZUSD for Brent Crude Oil)
+    - Market indices (^GSPC for S&P 500, ^DJI for Dow Jones)
 
 You can set these variables in a .env file in the project root:
 
@@ -413,48 +446,90 @@ TEST_MODE=true  # For testing with mock data
 
 ## CI/CD Pipeline
 
-This project uses GitHub Actions for continuous integration and delivery, managed by two separate workflows:
+This project implements a comprehensive CI/CD pipeline with multiple stages:
 
-### Standard CI Pipeline (ci.yml)
+### 1. Continuous Integration (ci.yml)
 
-The main CI pipeline runs automatically on push to main branch and pull requests:
+Every pull request and push to main automatically triggers:
 
-- Automated testing on multiple Python versions (3.11, 3.12)
-- Full code coverage reporting with CodeCov integration
-- Automatic Docker image building and publishing to GitHub Container Registry
-- Skips acceptance tests that require API keys
+- **Unit Tests**: Testing individual components with pytest
+  - Runs on multiple Python versions (3.11, 3.12)
+  - Excludes acceptance tests
+  - Reports coverage to Codecov
+  
+- **Integration Tests**: Validating component interaction
+  - Runs acceptance tests with `TEST_MODE=true` 
+  - Uses mock data to avoid API costs
+  - Reports separate coverage metrics
+  
+- **Deployment** (when merged to main):
+  - Builds Docker image with latest code
+  - Publishes to GitHub Container Registry
+  - Creates a deployment marker for tracking
 
 The workflow configuration is located in `.github/workflows/ci.yml`.
 
-### API Acceptance Tests (acceptance-tests.yml)
+### 2. Acceptance Testing (acceptance-tests.yml)
 
-A separate workflow for testing integration with the real FMP API:
+Tests with the real FMP API are run:
 
-- Runs on a weekly schedule (Mondays at 5 AM UTC) or can be triggered manually
-- Requires a valid FMP API key stored as a GitHub secret
-- Tests actual API connectivity, response formats, and data structure
-- Validates graceful error handling and formatting
+- **Scheduled**: Automatically runs every Monday at 5 AM UTC 
+- **On-Demand**: Can be manually triggered with specific commits
+- **Validation**: Confirms real API compatibility
+- **Status Updates**: Records success/failure on the deployment
 
-This helps ensure compatibility with the external API while keeping the main CI pipeline fast and reliable.
+This separate workflow helps ensure compatibility with the external API while keeping the main CI pipeline fast and avoiding unnecessary API costs.
 
 To run the acceptance tests workflow manually:
 1. Go to the GitHub repository
 2. Click on the "Actions" tab
 3. Select "API Acceptance Tests" from the workflows list
-4. Click "Run workflow"
+4. Click "Run workflow" (optionally specify a commit SHA)
 
 The acceptance tests workflow configuration is located in `.github/workflows/acceptance-tests.yml`.
 
+### 3. Release Process (release.yml)
+
+When ready to publish a stable version:
+
+- **Manual Trigger**: Provide version number and commit SHA
+- **Verification**: Ensures the commit has passed acceptance tests
+- **Tagging**: Creates Git tag and GitHub Release
+- **Production Image**: Publishes versioned and stable Docker images
+
+To create a new release:
+1. Go to the GitHub repository
+2. Click on the "Actions" tab
+3. Select "Release" from the workflows list
+4. Click "Run workflow"
+5. Enter the version number and commit SHA to release
+
+The release workflow configuration is located in `.github/workflows/release.yml`.
+
 ### Container Registry
 
-Docker images are automatically built and published to GitHub Container Registry when changes are pushed to the main branch. The images are tagged with both latest and the commit SHA:
+Docker images are published to GitHub Container Registry with various tags:
 
 ```bash
-# Pull the latest image
-docker pull ghcr.io/cdtait/fmp-mcp-server:latest
+# Development (from CI pipeline)
+docker pull ghcr.io/cdtait/fmp-mcp-server:latest           # Latest build from main branch
+docker pull ghcr.io/cdtait/fmp-mcp-server:a7f33fe2ce0265e0 # Specific commit
 
-# Pull a specific version by commit SHA
-docker pull ghcr.io/cdtait/fmp-mcp-server:a7f33fe2ce0265e0036789c27ad15c67c63cc974
+# Production releases (from release workflow)
+docker pull ghcr.io/cdtait/fmp-mcp-server:stable           # Latest stable release
+docker pull ghcr.io/cdtait/fmp-mcp-server:v1.2.3           # Specific version
 ```
 
 See the [Using Docker](#using-docker) section for detailed instructions on running the container.
+
+### Coverage Reporting
+
+Code coverage is tracked across different testing stages:
+
+- **Unit Tests**: Basic code path coverage
+- **Integration Tests**: Coverage with mock data
+- **Acceptance Tests**: Coverage with real API calls
+
+Codecov is used to aggregate and visualize coverage metrics, with separate flags for each testing stage.
+
+[![codecov](https://codecov.io/gh/cdtait/fmp-mcp-server/branch/main/graph/badge.svg)](https://codecov.io/gh/cdtait/fmp-mcp-server)
