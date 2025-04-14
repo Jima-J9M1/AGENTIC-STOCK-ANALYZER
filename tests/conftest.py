@@ -895,6 +895,92 @@ async def mock_successful_api_response(endpoint, params=None):
             }
         ]
     
+    # Handle company profile endpoint
+    elif endpoint == "profile":
+        symbol = params.get('symbol', '').upper() if params else ''
+        
+        if symbol == "AAPL":
+            return [
+                {
+                    "symbol": "AAPL",
+                    "companyName": "Apple Inc.",
+                    "sector": "Technology",
+                    "industry": "Consumer Electronics",
+                    "ceo": "Tim Cook",
+                    "description": "Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide. The company offers iPhone, Mac, iPad, and wearables, home, and accessories.",
+                    "mktCap": 2790000000000,
+                    "price": 190.50,
+                    "beta": 1.28,
+                    "volAvg": 65000000,
+                    "dcf": 195.75,
+                    "pe": 32.5,
+                    "eps": 5.86,
+                    "roe": 0.32,
+                    "roa": 0.25,
+                    "revenuePerShare": 25.6,
+                    "website": "https://www.apple.com",
+                    "exchange": "NASDAQ",
+                    "ipoDate": "1980-12-12"
+                }
+            ]
+        elif symbol == "MSFT":
+            return [
+                {
+                    "symbol": "MSFT",
+                    "companyName": "Microsoft Corporation",
+                    "sector": "Technology",
+                    "industry": "Software—Infrastructure",
+                    "ceo": "Satya Nadella",
+                    "description": "Microsoft Corporation develops, licenses, and supports software, services, devices, and solutions worldwide. The company operates in three segments: Productivity and Business Processes, Intelligent Cloud, and More Personal Computing.",
+                    "mktCap": 2950000000000,
+                    "price": 410.75,
+                    "beta": 0.95,
+                    "volAvg": 25000000,
+                    "dcf": 415.20,
+                    "pe": 37.2,
+                    "eps": 11.04,
+                    "roe": 0.42,
+                    "roa": 0.19,
+                    "revenuePerShare": 31.8,
+                    "website": "https://www.microsoft.com",
+                    "exchange": "NASDAQ",
+                    "ipoDate": "1986-03-13"
+                }
+            ]
+        else:
+            # Generic company profile
+            return [
+                {
+                    "symbol": symbol,
+                    "companyName": f"{symbol} Corporation",
+                    "sector": "Technology",
+                    "industry": "Software",
+                    "ceo": "John Doe",
+                    "description": "This is a sample description for a company.",
+                    "mktCap": 500000000000,
+                    "price": 150.00,
+                    "beta": 1.00,
+                    "volAvg": 10000000,
+                    "dcf": 155.00,
+                    "pe": 25.0,
+                    "eps": 6.00,
+                    "roe": 0.20,
+                    "roa": 0.15,
+                    "revenuePerShare": 20.0,
+                    "website": "https://www.example.com",
+                    "exchange": "NASDAQ",
+                    "ipoDate": "2000-01-01"
+                }
+            ]
+    
+    # Handle company-notes endpoint
+    elif endpoint == "company-notes":
+        symbol = params.get('symbol', '').upper() if params else ''
+        
+        # For test purposes, we'll return empty results for all companies
+        # In a real API, this would return company debt instruments
+        return []
+            
     # Handle cryptocurrency-list endpoint
     elif endpoint == "cryptocurrency-list":
         return [
@@ -1600,28 +1686,52 @@ def mock_financial_estimates_response():
     """Mock response for financial estimates API endpoint"""
     return [
         {
-            "date": "2023-12-31",
             "symbol": "AAPL",
-            "estimatedRevenue": 120000000000,
-            "estimatedRevenueHigh": 125000000000,
-            "estimatedRevenueLow": 115000000000,
-            "estimatedEps": 1.95,
-            "estimatedEpsHigh": 2.10,
-            "estimatedEpsLow": 1.80,
-            "estimatedNetIncome": 30000000000,
-            "estimatedEbitda": 40000000000
+            "date": "2023-12-31",
+            "revenueLow": 115000000000,
+            "revenueHigh": 125000000000,
+            "revenueAvg": 120000000000,
+            "ebitdaLow": 38000000000,
+            "ebitdaHigh": 42000000000,
+            "ebitdaAvg": 40000000000,
+            "ebitLow": 34000000000,
+            "ebitHigh": 38000000000,
+            "ebitAvg": 36000000000,
+            "netIncomeLow": 28000000000,
+            "netIncomeHigh": 32000000000,
+            "netIncomeAvg": 30000000000,
+            "sgaExpenseLow": 18000000000,
+            "sgaExpenseHigh": 22000000000,
+            "sgaExpenseAvg": 20000000000,
+            "epsAvg": 1.95,
+            "epsHigh": 2.10,
+            "epsLow": 1.80,
+            "numAnalystsRevenue": 24,
+            "numAnalystsEps": 26
         },
         {
-            "date": "2024-03-31",
             "symbol": "AAPL",
-            "estimatedRevenue": 95000000000,
-            "estimatedRevenueHigh": 98000000000,
-            "estimatedRevenueLow": 92000000000,
-            "estimatedEps": 1.65,
-            "estimatedEpsHigh": 1.75,
-            "estimatedEpsLow": 1.55,
-            "estimatedNetIncome": 28000000000,
-            "estimatedEbitda": 36000000000
+            "date": "2024-03-31",
+            "revenueLow": 92000000000,
+            "revenueHigh": 98000000000,
+            "revenueAvg": 95000000000,
+            "ebitdaLow": 34000000000,
+            "ebitdaHigh": 38000000000,
+            "ebitdaAvg": 36000000000,
+            "ebitLow": 30000000000,
+            "ebitHigh": 34000000000,
+            "ebitAvg": 32000000000,
+            "netIncomeLow": 26000000000,
+            "netIncomeHigh": 30000000000,
+            "netIncomeAvg": 28000000000,
+            "sgaExpenseLow": 16000000000,
+            "sgaExpenseHigh": 20000000000,
+            "sgaExpenseAvg": 18000000000,
+            "epsAvg": 1.65,
+            "epsHigh": 1.75,
+            "epsLow": 1.55,
+            "numAnalystsRevenue": 22,
+            "numAnalystsEps": 24
         }
     ]
 
@@ -1632,27 +1742,29 @@ def mock_price_target_news_response():
     return [
         {
             "symbol": "AAPL",
-            "company": "Apple Inc.",
-            "publisher": "Morgan Stanley",
-            "analyst": "Jane Smith",
-            "targetPrice": 180.00,
-            "newTargetPrice": 195.00,
-            "stockPrice": 190.50,
-            "title": "Morgan Stanley raises Apple price target on strong services growth",
-            "newsURL": "https://example.com/news/morgan-stanley-apple",
-            "date": "2023-06-15"
+            "publishedDate": "2025-03-12T10:25:54.000Z",
+            "newsURL": "https://thefly.com/permalinks/entry.php/id4087871/3060286394/AAPL-Apple-price-target-lowered-by--at-Morgan-Stanley-heres-why",
+            "newsTitle": "Apple price target lowered to $252 from $275 at Morgan Stanley",
+            "analystName": "Erik Woodring",
+            "priceTarget": 252,
+            "adjPriceTarget": 252,
+            "priceWhenPosted": 220.935,
+            "newsPublisher": "TheFly",
+            "newsBaseURL": "thefly.com",
+            "analystCompany": "Morgan Stanley"
         },
         {
-            "symbol": "MSFT",
-            "company": "Microsoft Corporation",
-            "publisher": "Goldman Sachs",
-            "analyst": "John Doe",
-            "targetPrice": 350.00,
-            "newTargetPrice": 390.00,
-            "stockPrice": 376.80,
-            "title": "Goldman Sachs upgrades Microsoft on cloud momentum",
-            "newsURL": "https://example.com/news/goldman-microsoft",
-            "date": "2023-06-14"
+            "symbol": "AAPL",
+            "publishedDate": "2025-02-11T17:49:08.000Z",
+            "newsURL": "https://thefly.com/permalinks/entry.php/id4068742/5061286394/AAPL;BABA-Apple-partnering-with-Alibaba-could-be-critical-catalyst-says-Morgan-Stanley",
+            "newsTitle": "Apple partnering with Alibaba could be 'critical catalyst,' says Morgan Stanley",
+            "analystName": "",
+            "priceTarget": 275,
+            "adjPriceTarget": 275,
+            "priceWhenPosted": 232.62,
+            "newsPublisher": "TheFly",
+            "newsBaseURL": "thefly.com",
+            "analystCompany": "Morgan Stanley"
         }
     ]
 

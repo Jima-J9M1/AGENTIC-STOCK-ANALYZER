@@ -7,28 +7,15 @@ from unittest.mock import patch, AsyncMock
 @patch('src.api.client.fmp_api_request')
 async def test_get_market_hours(mock_request):
     """Test the get_market_hours function"""
-    # Sample response data
+    # Sample response data based on actual API response
     mock_response = [
         {
-            "stockExchangeName": "New York Stock Exchange",
-            "isTheStockMarketOpen": True,
+            "exchange": "NASDAQ",
+            "name": "NASDAQ Global Market",
+            "openingHour": "09:30 AM -04:00",
+            "closingHour": "04:00 PM -04:00",
             "timezone": "America/New_York",
-            "openingHour": "09:30:00",
-            "closingHour": "16:00:00"
-        },
-        {
-            "stockExchangeName": "NASDAQ",
-            "isTheStockMarketOpen": True,
-            "timezone": "America/New_York",
-            "openingHour": "09:30:00",
-            "closingHour": "16:00:00"
-        },
-        {
-            "stockExchangeName": "London Stock Exchange",
-            "isTheStockMarketOpen": False,
-            "timezone": "Europe/London",
-            "openingHour": "08:00:00",
-            "closingHour": "16:30:00"
+            "isMarketOpen": False
         }
     ]
     
@@ -39,19 +26,15 @@ async def test_get_market_hours(mock_request):
     from src.tools.market_hours import get_market_hours
     
     # Execute the tool
-    result = await get_market_hours()
+    result = await get_market_hours("NASDAQ")
     
     # Check API was called with correct parameters
-    mock_request.assert_called_once_with("market-hours", {})
+    mock_request.assert_called_once_with("exchange-market-hours", {"exchange": "NASDAQ"})
     
     # Check the result contains expected information
-    assert "# Market Hours Status" in result
-    assert "🟢 Open Markets" in result
-    assert "New York Stock Exchange" in result
-    assert "NASDAQ" in result
-    assert "🔴 Closed Markets" in result
-    assert "London Stock Exchange" in result
-    assert "## Market Trading Hours" in result
+    assert "# Market Hours for NASDAQ" in result
+    assert "| Exchange | Status | Opening Hour | Closing Hour | Timezone |" in result
+    assert "| NASDAQ Global Market | 🔴 Closed | 09:30 AM -04:00 | 04:00 PM -04:00 | America/New_York |" in result
 
 
 @pytest.mark.asyncio
@@ -111,16 +94,16 @@ async def test_get_holidays(mock_request):
 async def test_get_market_hours_error(mock_request):
     """Test the get_market_hours function with error response"""
     # Set up the mock
-    mock_request.return_value = {"error": "API Error", "message": "Internal server error"}
+    mock_request.return_value = {"error": "API Error", "message": "Exchange not found"}
     
     # Import after patching
     from src.tools.market_hours import get_market_hours
     
     # Execute the tool
-    result = await get_market_hours()
+    result = await get_market_hours("INVALID")
     
     # Check error handling
-    assert "Error fetching market hours information: Internal server error" in result
+    assert "Error fetching market hours information: Exchange not found" in result
 
 
 @pytest.mark.asyncio
@@ -151,10 +134,10 @@ async def test_get_market_hours_empty(mock_request):
     from src.tools.market_hours import get_market_hours
     
     # Execute the tool
-    result = await get_market_hours()
+    result = await get_market_hours("NYSE")
     
     # Check empty response handling
-    assert "No market hours data found" in result
+    assert "No market hours data found for exchange: NYSE" in result
 
 
 @pytest.mark.asyncio

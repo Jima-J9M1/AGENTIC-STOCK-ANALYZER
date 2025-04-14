@@ -10,73 +10,49 @@ from typing import Dict, Any, Optional, List, Union
 from src.api.client import fmp_api_request
 
 
-async def get_market_hours() -> str:
+async def get_market_hours(exchange: str = "NASDAQ") -> str:
     """
-    Get the current market hours status for major stock exchanges
+    Get the current market hours status for a specific stock exchange
     
+    Args:
+        exchange: Exchange code (e.g., NASDAQ, NYSE, LSE)
+        
     Returns:
-        Current market hours status for major stock exchanges
+        Current market hours status for the specified stock exchange
     """
-    data = await fmp_api_request("market-hours", {})
+    # Make API request to the exchange-market-hours endpoint
+    data = await fmp_api_request("exchange-market-hours", {"exchange": exchange})
     
     if isinstance(data, dict) and "error" in data:
         return f"Error fetching market hours information: {data.get('message', 'Unknown error')}"
     
     if not data or not isinstance(data, list) or len(data) == 0:
-        return "No market hours data found"
+        return f"No market hours data found for exchange: {exchange}"
     
     # Format the response
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     result = [
-        "# Market Hours Status",
+        f"# Market Hours for {exchange}",
         f"*Data as of {current_time}*",
         ""
     ]
     
-    # Group exchanges by status
-    market_status = {}
-    for exchange in data:
-        name = exchange.get('stockExchangeName', 'Unknown')
-        is_open = exchange.get('isTheStockMarketOpen', False)
-        status_key = "Open Markets" if is_open else "Closed Markets"
-        
-        if status_key not in market_status:
-            market_status[status_key] = []
-        
-        market_status[status_key].append(name)
+    # Create a table for exchange hours
+    result.append("| Exchange | Status | Opening Hour | Closing Hour | Timezone |")
+    result.append("|----------|--------|--------------|--------------|----------|")
     
-    # Format the output
-    for status, exchanges in market_status.items():
-        # Determine the emoji to use
-        emoji = "🟢" if status == "Open Markets" else "🔴"
+    # Process each exchange in the response
+    for exchange_data in data:
+        exchange_name = exchange_data.get('name', exchange_data.get('exchange', 'Unknown'))
+        is_open = exchange_data.get('isMarketOpen', False)
+        status_emoji = "🟢 Open" if is_open else "🔴 Closed"
+        opening_hour = exchange_data.get('openingHour', 'N/A')
+        closing_hour = exchange_data.get('closingHour', 'N/A')
+        timezone = exchange_data.get('timezone', 'Unknown')
         
-        result.append(f"## {emoji} {status}")
-        result.append("")
-        
-        # List exchanges
-        for exchange in sorted(exchanges):
-            result.append(f"- {exchange}")
-        
-        result.append("")
-    
-    # Add market timing information if available
-    has_timing_info = False
-    for exchange in data:
-        name = exchange.get('stockExchangeName', 'Unknown')
-        timezone = exchange.get('timezone', '')
-        open_time = exchange.get('openingHour', '')
-        close_time = exchange.get('closingHour', '')
-        
-        if open_time and close_time:
-            if not has_timing_info:
-                result.append("## Market Trading Hours")
-                result.append("")
-                result.append("| Exchange | Opens | Closes | Timezone |")
-                result.append("|----------|-------|--------|----------|")
-                has_timing_info = True
-            
-            result.append(f"| {name} | {open_time} | {close_time} | {timezone} |")
+        # Add row to the table
+        result.append(f"| {exchange_name} | {status_emoji} | {opening_hour} | {closing_hour} | {timezone} |")
     
     return "\n".join(result)
 
