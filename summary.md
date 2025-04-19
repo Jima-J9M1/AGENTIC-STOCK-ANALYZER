@@ -113,6 +113,70 @@ The test suite (`tests/`) covers:
 
 This implementation demonstrates how MCP can be used to expose financial data and analysis capabilities to LLMs in a structured way. By following TDD practices, we've created a robust and maintainable codebase that can be extended with additional features in the future.
 
+# FMP MCP Server - Historical Commodity Price Data Addition (April 19, 2025)
+
+## Session Summary
+
+In this session, we enhanced the Financial Modeling Prep MCP Server with a new function for retrieving historical commodity price data. This feature allows users to access historical price information for commodities using the FMP API endpoint `historical-price-eod/light`.
+
+## Key Accomplishments
+
+1. **Implemented Historical Price EOD Light Function**
+   - Created `get_historical_price_eod_light` function in `src/tools/commodities.py`
+   - Added support for required `symbol` parameter and optional `limit`, `from_date`, and `to_date` parameters
+   - Implemented daily price change and percentage change calculations
+   - Formatted output as a Markdown table with emoji indicators for price movements
+   - Added comprehensive error handling and parameter validation
+
+2. **Added Comprehensive Tests**
+   - Created unit tests in `tests/test_commodities.py` following TDD principles
+   - Added acceptance test in `tests/acceptance_tests.py` to verify integration with the real API
+   - Added mock response data in `tests/conftest.py` for testing in TEST_MODE
+   - Ensured all tests pass successfully
+
+3. **Integrated with Server**
+   - Updated imports in `src/server.py`
+   - Registered the new function as a tool
+   - Verified proper registration and availability
+
+4. **Updated Documentation**
+   - Added information about the new function to README.md
+   - Created a detailed summary document (summary_get_historical_price_eod_light.md)
+
+## Function Implementation Details
+
+The `get_historical_price_eod_light` function provides:
+
+- Historical price data for commodities (e.g., gold, silver, oil)
+- Optional filtering by date range using `from_date` and `to_date` parameters
+- Optional limiting of results using the `limit` parameter
+- Calculation of daily price changes and percentage changes
+- Well-formatted Markdown output with emoji indicators (🔺, 🔻, ➖) for price movements
+
+Example output:
+```markdown
+# Historical Price Data for GCUSD
+*Data as of 2025-04-19 15:30:22*
+From: 2025-01-31 To: 2025-02-04
+
+| Date | Price | Volume | Daily Change | Daily Change % |
+|------|-------|--------|-------------|----------------|
+| 2025-02-04 | 2,873.7 | 137,844 | 🔺 8.5 | 🔺 0.3% |
+| 2025-02-03 | 2,865.2 | 142,563 | 🔺 7.7 | 🔺 0.27% |
+| 2025-02-02 | 2,857.5 | 134,912 | 🔺 7.2 | 🔺 0.25% |
+| 2025-02-01 | 2,850.3 | 129,876 | 🔺 8.2 | 🔺 0.29% |
+| 2025-01-31 | 2,842.1 | 145,332 | N/A | N/A |
+```
+
+## Next Steps
+
+Potential future enhancements could include:
+
+- Adding additional historical data functions for other asset types
+- Adding more data visualization tools for historical data
+- Implementing technical indicators based on the historical data
+- Adding comparing historical price data across multiple commodities
+
 # FMP MCP Server - Chat Agent Addition (April 14, 2025)
 
 ## Session Summary

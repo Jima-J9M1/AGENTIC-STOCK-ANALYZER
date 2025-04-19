@@ -885,6 +885,68 @@ async def test_price_target_latest_news_format():
 
 
 @pytest.mark.asyncio
+@pytest.mark.acceptance
+async def test_historical_price_eod_light_format():
+    """Test the get_historical_price_eod_light tool with the real API"""
+    from src.tools.commodities import get_historical_price_eod_light
+    
+    # Call the get_historical_price_eod_light tool with a common commodity
+    result = await get_historical_price_eod_light(symbol="GCUSD", limit=5)
+    
+    # Check return format
+    assert isinstance(result, str)
+    
+    # Check for presence of key sections
+    assert "# Historical Price Data for GCUSD" in result
+    assert "| Date | Price | Volume | Daily Change | Daily Change % |" in result
+    
+    # Check that data is returned and properly formatted
+    if "No historical price data found for GCUSD" not in result:
+        # Check formatting of the result
+        assert "*Data as of " in result  # Should show current date/time
+        
+        # Check for formatting of numbers with commas
+        contains_formatted_number = False
+        for line in result.split('\n'):
+            if line.startswith('|') and ',' in line and line.count('|') >= 5:
+                contains_formatted_number = True
+                break
+        assert contains_formatted_number, "No properly formatted numbers found in the result"
+        
+        # Check for at least one row with price data
+        assert "| 202" in result  # Date starting with 202x
+        
+        # Check for daily change indicators
+        change_indicators_present = any(indicator in result for indicator in ["🔺", "🔻", "➖"])
+        assert change_indicators_present, "No daily change indicators found in the result"
+        
+        # Check that the result contains percent signs for percent changes
+        assert "%" in result
+    
+    # Test with date range
+    from datetime import datetime, timedelta
+    today = datetime.now()
+    one_month_ago = today - timedelta(days=30)
+    
+    today_str = today.strftime("%Y-%m-%d")
+    one_month_ago_str = one_month_ago.strftime("%Y-%m-%d")
+    
+    result_with_dates = await get_historical_price_eod_light(
+        symbol="GCUSD", 
+        from_date=one_month_ago_str,
+        to_date=today_str
+    )
+    
+    assert isinstance(result_with_dates, str)
+    assert "# Historical Price Data for GCUSD" in result_with_dates
+    
+    # Verify that the date range is included in the output
+    if "No historical price data found for GCUSD" not in result_with_dates:
+        assert f"From: {one_month_ago_str}" in result_with_dates
+        assert f"To: {today_str}" in result_with_dates
+
+
+@pytest.mark.asyncio
 async def test_error_handling_with_invalid_symbol(setup_api_key):
     """Test API error handling with an invalid symbol"""
     # If we're in TEST_MODE, remove the patch temporarily so we can see real errors

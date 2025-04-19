@@ -4,6 +4,7 @@ Commodities-related tools for the FMP MCP server
 This module contains tools related to the Commodities section of the Financial Modeling Prep API:
 https://site.financialmodelingprep.com/developer/docs/stable/commodities-list
 https://site.financialmodelingprep.com/developer/docs/stable/commodities-prices
+https://site.financialmodelingprep.com/developer/docs/stable/commodities-historical-price-eod-light
 """
 from datetime import datetime
 from typing import Dict, Any, Optional, List, Union
@@ -159,5 +160,113 @@ async def get_commodities_prices(symbol: str = None) -> str:
                 )
             
             result.append("")
+    
+    return "\n".join(result)
+
+
+async def get_historical_price_eod_light(
+    symbol: str,
+    limit: Optional[int] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None
+) -> str:
+    """
+    Get historical price data for a commodity from the EOD light API
+    
+    Args:
+        symbol: The commodity symbol (e.g., "GCUSD" for Gold)
+        limit: Optional number of results to return
+        from_date: Optional start date in format "YYYY-MM-DD"
+        to_date: Optional end date in format "YYYY-MM-DD"
+    
+    Returns:
+        Historical price data formatted as markdown
+    """
+    # Validate parameters
+    if not symbol:
+        return "Error: Symbol parameter is required"
+    
+    # Prepare parameters
+    params = {"symbol": symbol}
+    if limit is not None:
+        params["limit"] = limit
+    if from_date:
+        params["from"] = from_date
+    if to_date:
+        params["to"] = to_date
+    
+    # Make API request
+    data = await fmp_api_request("historical-price-eod/light", params)
+    
+    # Check for errors
+    if isinstance(data, dict) and "error" in data:
+        return f"Error fetching historical price data: {data.get('message', 'Unknown error')}"
+    
+    # Check for empty response
+    if not data or not isinstance(data, list) or len(data) == 0:
+        return f"No historical price data found for {symbol}"
+    
+    # Format the response
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    result = [
+        f"# Historical Price Data for {symbol}",
+        f"*Data as of {current_time}*",
+    ]
+    
+    # Add date range info if provided
+    if from_date and to_date:
+        result.append(f"From: {from_date} To: {to_date}")
+    elif from_date:
+        result.append(f"From: {from_date}")
+    elif to_date:
+        result.append(f"To: {to_date}")
+    
+    # Add table header
+    result.extend([
+        "",
+        "| Date | Price | Volume | Daily Change | Daily Change % |",
+        "|------|-------|--------|-------------|----------------|"
+    ])
+    
+    # Sort data by date (newest first)
+    sorted_data = sorted(data, key=lambda x: x.get('date', ''), reverse=True)
+    
+    # Process each data point and calculate daily changes
+    for i, entry in enumerate(sorted_data):
+        date = entry.get('date', 'N/A')
+        price = format_number(entry.get('price', 'N/A'))
+        volume = format_number(entry.get('volume', 'N/A'))
+        
+        # Calculate daily change if we have data for the previous day
+        if i < len(sorted_data) - 1:
+            current_price = entry.get('price', 0)
+            prev_price = sorted_data[i + 1].get('price', 0)
+            
+            if prev_price and current_price:
+                daily_change = current_price - prev_price
+                daily_change_pct = (daily_change / prev_price) * 100
+                
+                # Determine change emoji
+                change_emoji = "🔺" if daily_change > 0 else "🔻" if daily_change < 0 else "➖"
+                
+                # Format the values
+                daily_change_str = f"{change_emoji} {format_number(abs(daily_change))}"
+                daily_change_pct_str = f"{change_emoji} {format_number(abs(daily_change_pct))}%"
+            else:
+                daily_change_str = "N/A"
+                daily_change_pct_str = "N/A"
+        else:
+            daily_change_str = "N/A"
+            daily_change_pct_str = "N/A"
+        
+        # Add to results
+        result.append(f"| {date} | {price} | {volume} | {daily_change_str} | {daily_change_pct_str} |")
+    
+    # Add a note about usage
+    result.extend([
+        "",
+        f"*Note: Historical price data shows the closing price for {symbol} on each trading day.*"
+    ])
     
     return "\n".join(result)

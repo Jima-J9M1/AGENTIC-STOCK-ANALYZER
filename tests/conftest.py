@@ -401,6 +401,40 @@ async def mock_successful_api_response(endpoint, params=None):
                 }
             ]
     
+    elif endpoint == "historical-price-eod/light":
+        symbol = params.get('symbol', 'GCUSD')
+        return [
+            {
+                "symbol": symbol,
+                "date": "2025-02-04",
+                "price": 2873.7,
+                "volume": 137844
+            },
+            {
+                "symbol": symbol,
+                "date": "2025-02-03",
+                "price": 2865.2,
+                "volume": 142563
+            },
+            {
+                "symbol": symbol,
+                "date": "2025-02-02",
+                "price": 2857.5,
+                "volume": 134912
+            },
+            {
+                "symbol": symbol,
+                "date": "2025-02-01",
+                "price": 2850.3,
+                "volume": 129876
+            },
+            {
+                "symbol": symbol,
+                "date": "2025-01-31",
+                "price": 2842.1,
+                "volume": 145332
+            }
+        ]
     elif "historical-price" in endpoint:
         return {
             "symbol": symbol,

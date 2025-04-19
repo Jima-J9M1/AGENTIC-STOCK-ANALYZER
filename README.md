@@ -15,7 +15,7 @@ A Model Context Protocol (MCP) server that provides tools, resources, and prompt
 - **Market Performers**: Get biggest gainers, losers, and most active stocks
 - **Market Hours**: Check market hours and holidays for major exchanges
 - **ETF Analysis**: Analyze ETF sector weightings, country exposure, and holdings
-- **Commodities**: Get commodities list and current prices
+- **Commodities**: Get commodities list, current prices, and historical price data
 - **Cryptocurrencies**: Access cryptocurrency listings and current quotes
 - **Forex**: Get forex pair listings and exchange rates
 - **Technical Indicators**: Calculate and interpret Exponential Moving Average (EMA)
@@ -28,7 +28,7 @@ The codebase is organized to align with the FMP API documentation structure foun
 
 - **analyst.py**: Analyst recommendations and price targets
 - **charts.py**: Stock chart and historical price data
-- **commodities.py**: Commodities list and price data
+- **commodities.py**: Commodities list, price data, and historical price data
 - **company.py**: Company profile and related information
 - **crypto.py**: Cryptocurrency listings and quotes
 - **etf.py**: ETF sector weightings, country exposure, and holdings
@@ -58,11 +58,21 @@ The codebase uses a standardized approach for retrieving quotes across different
   - **get_forex_quotes**: Currency exchange rates
   - **get_crypto_quote**: Cryptocurrency prices
   - **get_commodities_prices**: Commodity prices
+  - **get_historical_price_eod_light**: Historical commodity price data
   - **get_index_quote**: Market index values
 
 This standardization improves code maintainability and provides a consistent approach to retrieving asset prices throughout the application.
 
 ### Other Recent Changes
+
+- **get_historical_price_eod_light**: Added new function for retrieving historical commodity price data
+  - Uses the "historical-price-eod/light" endpoint for efficient data retrieval
+  - Supports date range filtering with from_date and to_date parameters
+  - Includes limit parameter for controlling the number of results
+  - Calculates daily price changes and percentage changes between consecutive days
+  - Displays data in a well-formatted Markdown table with emoji indicators (🔺, 🔻, ➖) for price movements
+
+### Earlier Changes
 
 - **get_quote_change**: Updated to use the "stock-price-change" endpoint instead of "quote-change" endpoint
   - Now returns price changes for all time periods (1D, 5D, 1M, 3M, 6M, YTD, 1Y, 3Y, 5Y, 10Y, max) in a single request
@@ -475,6 +485,7 @@ Once the server is running and connected to an MCP client like Claude Desktop or
 
 8. Get commodity, crypto, and forex information:
    - "What's the current price of gold?"
+   - "Show me historical price data for gold for the past month"
    - "Show me the current Bitcoin price"
    - "What's the exchange rate for EURUSD?"
 

@@ -25,7 +25,7 @@ from src.tools.indices import get_index_list, get_index_quote
 from src.tools.market_performers import get_biggest_gainers, get_biggest_losers, get_most_active
 from src.tools.market_hours import get_market_hours
 from src.tools.etf import get_etf_sectors, get_etf_countries, get_etf_holdings
-from src.tools.commodities import get_commodities_list, get_commodities_prices
+from src.tools.commodities import get_commodities_list, get_commodities_prices, get_historical_price_eod_light
 from src.tools.crypto import get_crypto_list, get_crypto_quote
 from src.tools.forex import get_forex_list, get_forex_quotes
 from src.tools.technical_indicators import get_ema
@@ -77,6 +77,7 @@ mcp.tool()(get_market_hours)
 #mcp.tool()(get_etf_holdings)
 mcp.tool()(get_commodities_list)
 mcp.tool()(get_commodities_prices)
+mcp.tool()(get_historical_price_eod_light)
 mcp.tool()(get_crypto_list)
 mcp.tool()(get_crypto_quote)
 mcp.tool()(get_forex_list)
