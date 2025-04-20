@@ -1,0 +1,34 @@
+name: Cleanup Old Docker Images
+
+on:
+  workflow_dispatch:  # Manual trigger for now (can add cron later)
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old container versions from GitHub Packages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGE_NAME: fmp-mcp-server
+          OWNER: ${{ github.repository_owner }}
+          KEEP_LATEST: 5
+        run: |
+          echo "Fetching package versions..."
+          versions=$(gh api "/users/${OWNER}/packages/container/${PACKAGE_NAME}/versions" --paginate -q '.[] | {id: .id, updated_at: .updated_at}' | jq -s 'sort_by(.updated_at) | reverse')
+
+          total=$(echo "$versions" | jq 'length')
+          echo "Found $total versions"
+
+          if [ "$total" -le "$KEEP_LATEST" ]; then
+            echo "Nothing to delete — total ($total) <= KEEP_LATEST ($KEEP_LATEST)"
+            exit 0
+          fi
+
+          to_delete=$(echo "$versions" | jq -r ".[$KEEP_LATEST:][] | .id")
+
+          echo "Deleting $(echo "$to_delete" | wc -l) old versions..."
+          for id in $to_delete; do
+            echo "Deleting version ID $id"
+            gh api --method DELETE "/users/${OWNER}/packages/container/${PACKAGE_NAME}/versions/$id"
+          done
