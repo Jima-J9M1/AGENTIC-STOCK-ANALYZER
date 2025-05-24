@@ -127,6 +127,13 @@ cp .env.template .env
 # Replace 'your_api_key_here' with your actual API key from FMP
 ```
 
+If you prefer using Python, you can use the MCP CLI:
+
+```bash
+# Install the MCP CLI if you haven't already
+pip install "mcp[cli]"
+```
+
 You can get an API key by registering at [Financial Modeling Prep](https://site.financialmodelingprep.com/developer/docs/).
 
 4. Set up your OpenAI API key (if using the chat agent):
@@ -429,21 +436,6 @@ Once the MCP Inspector is running:
    - If you started the server with a custom port (e.g., `PORT=9000`), use that port instead: `http://localhost:9000/sse`
 3. Click "Connect" to establish a connection with your server
 4. Explore available tools, resources, and prompts in their respective tabs
-
-#### Using MCP Inspector with Python
-
-If you prefer using Python, you can use the MCP CLI:
-
-```bash
-# Install the MCP CLI if you haven't already
-pip install mcp-cli
-
-# Run the inspector (with default port)
-mcp inspect http://localhost:8000
-
-# Or with a custom port if you specified one
-mcp inspect http://localhost:9000
-```
 
 ### Example Queries
 
