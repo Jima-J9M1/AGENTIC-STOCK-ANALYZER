@@ -150,7 +150,7 @@
           "volume": 137844
       }
   ]
-  You can run https://financialmodelingprep.com/stable/historical-price-eod/light?symbol=GCUSD&apikey=ICUxfLZ5MFj82rJEfuKmYw8qUhLTHeQ6 this url to 
+  You can run https://financialmodelingprep.com/stable/historical-price-eod/light?symbol=GCUSD&apikey=${FMP_API_KEY} this url to 
   get a goos example list
   What I want you to do is write get_historial_price_eod_light in the same way as the other functions in the project and some good unit_tests in 
   test_commodities.py. Use a test driven development approach building a stub which fails of get_historial_price_eod_light then with the tets 
@@ -535,7 +535,7 @@
           "volume": 137844
       }
   ]
-  You can run https://financialmodelingprep.com/stable/historical-price-eod/light?symbol=GCUSD&apikey=ICUxfLZ5MFj82rJEfuKmYw8qUhLTHeQ6 this url to 
+  You can run https://financialmodelingprep.com/stable/historical-price-eod/light?symbol=GCUSD&apikey=${FMP_API_KEY} this url to 
   get a goos example list
   What I want you to do is write get_historial_price_eod_light in the same way as the other functions in the project and some good unit_tests in 
   test_commodities.py. Use a test driven development approach building a stub which fails of get_historial_price_eod_light then with the tets 
@@ -1498,7 +1498,7 @@
           "volume": 137844
       }
   ]
-  You can run https://financialmodelingprep.com/stable/historical-price-eod/light?symbol=GCUSD&apikey=ICUxfLZ5MFj82rJEfuKmYw8qUhLTHeQ6 this url to 
+  You can run https://financialmodelingprep.com/stable/historical-price-eod/light?symbol=GCUSD&apikey=${FMP_API_KEY} this url to 
   get a goos example list
   What I want you to do is write get_historial_price_eod_light in the same way as the other functions in the project and some good unit_tests in 
   test_commodities.py. Use a test driven development approach building a stub which fails of get_historial_price_eod_light then with the tets 
@@ -1728,7 +1728,7 @@
      - They provided information about the API at 
   https://site.financialmodelingprep.com/developer/docs/stable/commodities-historical-price-eod-light
      - They shared an example URL: 
-  https://financialmodelingprep.com/stable/historical-price-eod/light?symbol=GCUSD&apikey=ICUxfLZ5MFj82rJEfuKmYw8qUhLTHeQ6
+  https://financialmodelingprep.com/stable/historical-price-eod/light?symbol=GCUSD&apikey=${FMP_API_KEY}
      - They shared the expected response structure:
        ```json
        [
