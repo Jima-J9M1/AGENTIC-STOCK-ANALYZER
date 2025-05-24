@@ -30,4 +30,13 @@ htmlcov/
 .pytest_cache/
 
 # OS specific
-.DS_Storecoverage.xml
+.DS_Store
+coverage.xml
+
+# Security - tokens and keys
+token.txt
+*.token
+*.key
+
+# Test scripts with hardcoded keys
+scripts/
