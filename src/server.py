@@ -17,7 +17,7 @@ from mcp.server.fastmcp import FastMCP, Context
 from src.tools.company import get_company_profile, get_company_notes
 from src.tools.statements import get_income_statement
 from src.tools.search import search_by_symbol, search_by_name
-from src.tools.quote import get_quote, get_quote_change
+from src.tools.quote import get_quote, get_quote_change, get_aftermarket_quote
 from src.tools.charts import get_price_change
 from src.tools.analyst import get_ratings_snapshot, get_financial_estimates, get_price_target_news, get_price_target_latest_news
 from src.tools.calendar import get_company_dividends, get_dividends_calendar
@@ -53,6 +53,7 @@ mcp.tool()(get_company_profile)
 mcp.tool()(get_company_notes)
 mcp.tool()(get_quote)
 mcp.tool()(get_quote_change)
+mcp.tool()(get_aftermarket_quote)
 mcp.tool()(get_price_change)
 mcp.tool()(get_income_statement)
 mcp.tool()(search_by_symbol)

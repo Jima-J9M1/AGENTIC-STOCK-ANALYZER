@@ -113,6 +113,89 @@ The test suite (`tests/`) covers:
 
 This implementation demonstrates how MCP can be used to expose financial data and analysis capabilities to LLMs in a structured way. By following TDD practices, we've created a robust and maintainable codebase that can be extended with additional features in the future.
 
+# FMP MCP Server - Aftermarket Quote Addition (May 24, 2025)
+
+## Session Summary
+
+In this session, we enhanced the Financial Modeling Prep MCP Server with a new function for retrieving aftermarket trading quotes. This feature allows users to access bid/ask pricing data, trading volumes, and timestamps for stocks during aftermarket trading hours using the FMP API endpoint `aftermarket-quote`.
+
+## Key Accomplishments
+
+1. **Implemented Aftermarket Quote Function**
+   - Created `get_aftermarket_quote` function in `src/tools/quote.py`
+   - Added support for aftermarket bid/ask prices, sizes, volume, and timestamp data
+   - Implemented timestamp conversion from milliseconds to human-readable format
+   - Formatted output as structured Markdown with clear bid/ask information
+   - Added comprehensive error handling and parameter validation
+
+2. **Added Comprehensive Tests**
+   - Created unit tests in `tests/test_quotes.py` following TDD principles
+   - Added mock response data in `tests/conftest.py` for testing in both TEST_MODE and acceptance tests
+   - Ensured all tests pass successfully with both mock and real API data
+   - Fixed acceptance test issues with real API responses vs mock data expectations
+
+3. **Integrated with Server**
+   - Updated imports in `src/server.py`
+   - Registered the new function as a tool
+   - Updated server tests to include the new tool
+   - Verified proper registration and availability
+
+4. **Updated Documentation**
+   - Added information about the new function to README.md
+   - Updated code organization documentation
+   - Added example queries for aftermarket trading
+
+5. **Fixed Pytest Configuration Issues**
+   - Resolved pytest marker warnings by ensuring consistent configuration
+   - Standardized on `pyproject.toml` for pytest configuration
+   - Fixed acceptance test assertions to match real API response formats
+
+## Function Implementation Details
+
+The `get_aftermarket_quote` function provides:
+
+- Aftermarket bid and ask prices with corresponding sizes
+- Trading volume during aftermarket hours  
+- Timestamp information converted from milliseconds to readable format
+- Well-formatted Markdown output with structured sections
+- Proper error handling for API failures and missing data
+
+Example output:
+```markdown
+# Aftermarket Quote for AAPL
+*Data as of 2025-05-24 10:35:37*
+
+## Bid/Ask Information
+**Bid Price**: $195.11
+**Bid Size**: 4
+**Ask Price**: $195.8
+**Ask Size**: 4
+
+## Trading Information
+**Volume**: 77,631,468
+**Quote Time**: 2025-05-23 21:00:01
+```
+
+## Technical Implementation Approach
+
+This implementation followed Test-Driven Development (TDD) methodology:
+
+1. **Research Phase**: Studied existing patterns and TDD transcript documentation
+2. **Stub Creation**: Created function that raises `NotImplementedError`
+3. **Test Writing**: Wrote comprehensive failing tests for all scenarios
+4. **Implementation**: Built function to make all tests pass
+5. **Integration**: Added to server registration and acceptance tests
+6. **Verification**: Confirmed functionality with both mock and real API data
+
+## Next Steps
+
+Potential future enhancements could include:
+
+- Adding pre-market quote functionality
+- Implementing real-time quote streaming
+- Adding more detailed market depth information
+- Creating alerts for significant aftermarket price movements
+
 # FMP MCP Server - Historical Commodity Price Data Addition (April 19, 2025)
 
 ## Session Summary

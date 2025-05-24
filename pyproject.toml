@@ -35,7 +35,7 @@ testpaths = ["tests"]
 python_files = "test_*.py acceptance_*.py"
 python_functions = "test_*"
 markers = [
-    "acceptance: marks tests that require external API connectivity"
+    "acceptance: marks tests that require external API connectivity",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning:pydantic.*:",

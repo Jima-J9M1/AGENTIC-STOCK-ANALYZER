@@ -41,6 +41,7 @@ async def test_tool_registration():
         "get_company_notes",
         "get_quote",
         "get_quote_change",
+        "get_aftermarket_quote",
         "get_price_change", 
         "get_income_statement",
         "search_by_symbol",

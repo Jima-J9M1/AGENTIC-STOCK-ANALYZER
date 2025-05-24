@@ -1486,6 +1486,22 @@ async def mock_successful_api_response(endpoint, params=None):
             }
         ]
     
+    # Handle aftermarket-quote endpoint
+    elif endpoint == "aftermarket-quote":
+        symbol = params.get('symbol', '').upper() if params else 'AAPL'
+        
+        return [
+            {
+                "symbol": symbol,
+                "bidSize": 4,
+                "bidPrice": 195.11,
+                "askSize": 4,
+                "askPrice": 195.8,
+                "volume": 77631468,
+                "timestamp": 1748030401000
+            }
+        ]
+    
     # Default empty response for unknown endpoints
     return []
 
@@ -1580,6 +1596,22 @@ def mock_stock_quote_response():
             "volume": 58000000,
             "avgVolume": 62000000,
             "open": 188.5
+        }
+    ]
+
+
+@pytest.fixture
+def mock_aftermarket_quote_response():
+    """Mock response for aftermarket quote API endpoint"""
+    return [
+        {
+            "symbol": "AAPL",
+            "bidSize": 4,
+            "bidPrice": 195.11,
+            "askSize": 4,
+            "askPrice": 195.8,
+            "volume": 77631468,
+            "timestamp": 1748030401000
         }
     ]
 

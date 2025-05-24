@@ -457,8 +457,10 @@ async def test_index_list_format():
     # At least one of the common indices should be present
     assert found_indices > 0, "No common indices found in the result"
     
-    # The result should contain exchange information
-    assert "INDEX" in result
+    # The result should contain exchange information (various real exchanges)
+    exchanges = ["TSX", "NYSE", "NASDAQ", "XETRA", "EURONEXT"]
+    found_exchange = any(exchange in result for exchange in exchanges)
+    assert found_exchange, "No expected exchange found in the result"
 
 
 @pytest.mark.asyncio

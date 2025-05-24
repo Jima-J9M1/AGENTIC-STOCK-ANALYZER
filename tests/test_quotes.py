@@ -152,3 +152,77 @@ async def test_get_quote_change_tool_empty_symbol():
     
     # Assertions
     assert "Error: Symbol parameter is required" in result
+
+
+@pytest.mark.asyncio
+@patch('src.api.client.fmp_api_request')
+async def test_get_aftermarket_quote_tool(mock_request, mock_aftermarket_quote_response):
+    """Test aftermarket quote tool with mock data"""
+    # Set up the mock
+    mock_request.return_value = mock_aftermarket_quote_response
+    
+    # Import after patching
+    from src.tools.quote import get_aftermarket_quote
+    
+    # Execute the tool
+    result = await get_aftermarket_quote(symbol="AAPL")
+    
+    # Verify API was called with correct parameters
+    mock_request.assert_called_once_with("aftermarket-quote", {"symbol": "AAPL"})
+    
+    # Assertions about the result
+    assert isinstance(result, str)
+    assert "AAPL" in result
+    assert "195.11" in result  # Bid price
+    assert "195.8" in result   # Ask price
+    assert "Bid" in result     # Should show bid info
+    assert "Ask" in result     # Should show ask info
+    assert "Volume" in result  # Should show volume
+
+
+@pytest.mark.asyncio
+@patch('src.api.client.fmp_api_request')
+async def test_get_aftermarket_quote_tool_error(mock_request):
+    """Test aftermarket quote tool error handling"""
+    # Set up the mock
+    mock_request.return_value = {"error": "API error", "message": "Failed to fetch data"}
+    
+    # Import after patching
+    from src.tools.quote import get_aftermarket_quote
+    
+    # Execute the tool
+    result = await get_aftermarket_quote(symbol="AAPL")
+    
+    # Assertions
+    assert "Error fetching aftermarket quote for AAPL" in result
+    assert "Failed to fetch data" in result
+
+
+@pytest.mark.asyncio
+@patch('src.api.client.fmp_api_request')
+async def test_get_aftermarket_quote_tool_empty_response(mock_request):
+    """Test aftermarket quote tool with empty response"""
+    # Set up the mock
+    mock_request.return_value = []
+    
+    # Import after patching
+    from src.tools.quote import get_aftermarket_quote
+    
+    # Execute the tool
+    result = await get_aftermarket_quote(symbol="NONEXISTENT")
+    
+    # Assertions
+    assert "No aftermarket quote data found for symbol NONEXISTENT" in result
+
+
+@pytest.mark.asyncio
+async def test_get_aftermarket_quote_tool_empty_symbol():
+    """Test aftermarket quote tool with empty symbol"""
+    # Import directly
+    from src.tools.quote import get_aftermarket_quote
+    
+    # Execute the tool with empty symbol
+    result = await get_aftermarket_quote(symbol="")
+    
+    # Assertions
+    assert "Error: Symbol parameter is required" in result

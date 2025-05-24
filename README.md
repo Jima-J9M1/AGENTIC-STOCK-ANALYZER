@@ -8,7 +8,7 @@ A Model Context Protocol (MCP) server that provides tools, resources, and prompt
 - **Financial Statements**: Retrieve and analyze income statements, balance sheets, and cash flow statements
 - **Financial Metrics**: Access key financial ratios and metrics for investment analysis
 - **Market Data**: Get market snapshots, indexes, and news
-- **Stock Quotes**: Get current stock quotes and simplified price information
+- **Stock Quotes**: Get current stock quotes, aftermarket quotes, and simplified price information
 - **Stock Charts**: Access historical price data and calculate price changes
 - **Analyst Ratings**: Get analyst recommendations and rating details
 - **Market Indices**: Access market indices data and quotes
@@ -37,7 +37,7 @@ The codebase is organized to align with the FMP API documentation structure foun
 - **market.py**: Market data and news
 - **market_hours.py**: Market hours and holidays for major exchanges
 - **market_performers.py**: Biggest gainers, losers, and most active stocks
-- **quote.py**: Stock quote data and price changes
+- **quote.py**: Stock quote data, aftermarket quotes, and price changes
 - **search.py**: API for searching tickers and companies
 - **statements.py**: Financial statements (income, balance sheet, cash flow, ratios)
 - **technical_indicators.py**: Technical indicators and analysis
@@ -55,6 +55,7 @@ The codebase uses a standardized approach for retrieving quotes across different
   
 - Each module provides specialized formatting for its respective asset type:
   - **get_quote**: Standard stock quotes
+  - **get_aftermarket_quote**: Aftermarket trading quotes with bid/ask data
   - **get_forex_quotes**: Currency exchange rates
   - **get_crypto_quote**: Cryptocurrency prices
   - **get_commodities_prices**: Commodity prices
@@ -64,6 +65,12 @@ The codebase uses a standardized approach for retrieving quotes across different
 This standardization improves code maintainability and provides a consistent approach to retrieving asset prices throughout the application.
 
 ### Other Recent Changes
+
+- **get_aftermarket_quote**: Added new function for retrieving aftermarket trading data
+  - Uses the "aftermarket-quote" endpoint to get bid/ask prices and sizes
+  - Includes trading volume and timestamp information
+  - Formats timestamps from milliseconds to human-readable format
+  - Provides structured Markdown output with emoji indicators
 
 - **get_historical_price_eod_light**: Added new function for retrieving historical commodity price data
   - Uses the "historical-price-eod/light" endpoint for efficient data retrieval
@@ -454,6 +461,8 @@ Once the server is running and connected to an MCP client like Claude Desktop or
    - "What's the current price of MSFT stock?"
    - "Show me recent price changes for GOOGL"
    - "Compare the current quotes for AAPL, AMZN, and META"
+   - "Get aftermarket quote for AAPL"
+   - "Show me the bid/ask spread for TSLA after hours"
 
 4. Get analyst ratings:
    - "What do analysts think about AMZN stock?"

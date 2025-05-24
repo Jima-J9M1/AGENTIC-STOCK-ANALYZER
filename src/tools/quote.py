@@ -124,3 +124,56 @@ async def get_quote_change(symbol: str) -> str:
             result.append(f"| {period_label} | {change_emoji} {change_percent:.2f}% |")
     
     return "\n".join(result)
+
+
+async def get_aftermarket_quote(symbol: str) -> str:
+    """
+    Get aftermarket trading quote information
+    
+    Args:
+        symbol: Ticker symbol (e.g., AAPL, MSFT, TSLA)
+        
+    Returns:
+        Aftermarket bid/ask prices, sizes, volume, and timestamp
+    """
+    if not symbol:
+        return "Error: Symbol parameter is required"
+    
+    data = await fmp_api_request("aftermarket-quote", {"symbol": symbol})
+    
+    if isinstance(data, dict) and "error" in data:
+        return f"Error fetching aftermarket quote for {symbol}: {data.get('message', 'Unknown error')}"
+    
+    if not data or not isinstance(data, list) or len(data) == 0:
+        return f"No aftermarket quote data found for symbol {symbol}"
+    
+    quote = data[0]
+    
+    # Format the response
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Convert timestamp to readable format if available
+    timestamp = quote.get('timestamp')
+    if timestamp:
+        # Convert milliseconds to seconds and format
+        timestamp_dt = datetime.fromtimestamp(timestamp / 1000)
+        quote_time = timestamp_dt.strftime("%Y-%m-%d %H:%M:%S")
+    else:
+        quote_time = "N/A"
+    
+    result = [
+        f"# Aftermarket Quote for {quote.get('symbol', 'Unknown')}",
+        f"*Data as of {current_time}*",
+        "",
+        "## Bid/Ask Information",
+        f"**Bid Price**: ${format_number(quote.get('bidPrice', 'N/A'))}",
+        f"**Bid Size**: {format_number(quote.get('bidSize', 'N/A'))}",
+        f"**Ask Price**: ${format_number(quote.get('askPrice', 'N/A'))}",
+        f"**Ask Size**: {format_number(quote.get('askSize', 'N/A'))}",
+        "",
+        "## Trading Information",
+        f"**Volume**: {format_number(quote.get('volume', 'N/A'))}",
+        f"**Quote Time**: {quote_time}",
+    ]
+    
+    return "\n".join(result)
