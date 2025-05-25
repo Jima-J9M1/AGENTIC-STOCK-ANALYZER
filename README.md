@@ -108,47 +108,72 @@ Tests are similarly organized with one test file per module, following a consist
 
 ## Installation
 
-1. Clone the repository
-2. Set up the environment using [uv](https://github.com/astral-sh/uv):
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/cdtait/fmp-mcp-server.git
+   cd fmp-mcp-server
+   ```
 
-```bash
-# Install uv if you don't have it yet
-curl -LsSf https://astral.sh/uv/install.sh | sh
-export PATH=~/.local/bin/:${PATH}
+2. Set up the environment using either pip or [uv](https://github.com/astral-sh/uv):
 
-# Create and activate the environment
-uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   ### Option 1: Using pip (Standard)
+   ```bash
+   # Create and activate a virtual environment
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   
+   # Install pip if not available (rare but possible in some environments)
+   # curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && python get-pip.py
+   
+   # Install dependencies
+   python -m pip install -r requirements.txt
+   
+   # For development (includes testing dependencies)
+   python -m pip install -e ".[dev]"
+   ```
 
-# Install dependencies
-uv pip install -e .
-```
+   ### Option 2: Using uv (Faster)
+   ```bash
+   # Install uv if you don't have it yet
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   export PATH=~/.local/bin/:${PATH}
+   
+   # Create and activate the environment
+   uv venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   
+   # Install dependencies
+   uv pip install -r requirements.txt
+   
+   # For development (includes testing dependencies)
+   uv pip install -e ".[dev]"
+   ```
 
 3. Set up your Financial Modeling Prep API key:
+   ```bash
+   # Copy the template
+   cp .env.template .env
+   
+   # Edit the .env file to add your API key
+   # Replace 'your_api_key_here' with your actual API key from FMP
+   ```
 
-```bash
-# Copy the template
-cp .env.template .env
-
-# Edit the .env file to add your API key
-# Replace 'your_api_key_here' with your actual API key from FMP
-```
-
-If you prefer using Python, you can use the MCP CLI:
-
-```bash
-# Install the MCP CLI if you haven't already
-pip install "mcp[cli]"
-```
-
-You can get an API key by registering at [Financial Modeling Prep](https://site.financialmodelingprep.com/developer/docs/).
+   You can get an API key by registering at [Financial Modeling Prep](https://site.financialmodelingprep.com/developer/docs/).
 
 4. Set up your OpenAI API key (if using the chat agent):
+   ```bash
+   # Add your OpenAI API key to the .env file
+   echo "OPENAI_API_KEY=your_openai_api_key_here" >> .env
+   ```
 
-```bash
-# Add your OpenAI API key to the .env file
-echo "OPENAI_API_KEY=your_openai_api_key_here" >> .env
-```
+5. Verify installation with tests:
+   ```bash
+   # Run unit tests
+   python -m pytest tests/ -v
+   
+   # Run acceptance tests with mock data
+   TEST_MODE=true python -m pytest tests/acceptance_tests.py -v
+   ```
 
 ## Development
 
@@ -188,16 +213,16 @@ This multi-level approach provides confidence in both individual components and 
 
 ```bash
 # Run all unit and integration tests
-pytest
+python -m pytest
 
 # Run with coverage report
-pytest --cov=src tests/
+python -m pytest --cov=src tests/
 
 # Run specific test file
-pytest tests/test_company.py
+python -m pytest tests/test_company.py
 
 # Run tests with specific marker
-pytest -m acceptance
+python -m pytest -m acceptance
 ```
 
 #### Acceptance Tests
@@ -212,12 +237,11 @@ To run acceptance tests:
 export FMP_API_KEY=your_api_key_here
 
 # Run the acceptance tests with real API
-pytest tests/acceptance_tests.py -v
+python -m pytest tests/acceptance_tests.py -v
 
 # Option 2: Run with mock data
 # This doesn't require an API key and uses mock responses
-export TEST_MODE=true
-pytest tests/acceptance_tests.py -v
+TEST_MODE=true python -m pytest tests/acceptance_tests.py -v
 ```
 
 These tests verify:
@@ -313,6 +337,22 @@ mcp install src/server.py
 python -m src.server --sse --port 8000
 ```
 
+#### Troubleshooting
+
+If you encounter import errors when running the server, verify that:
+
+1. Your virtual environment is activated:
+   ```bash
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   ```
+
+2. All dependencies are properly installed:
+   ```bash
+   python -m pip install -r requirements.txt
+   ```
+
+3. You're in the project root directory when running commands
+
 This starts the server in SSE (Server-Sent Events) mode, which allows connecting the MCP Inspector or other MCP clients over HTTP.
 
 ### Using the Chat Agent
@@ -340,7 +380,7 @@ python -m src.server --sse
 export OPENAI_API_KEY=your_openai_api_key_here
 
 # Run the chat agent
-python src/agent_chat_client.py
+python -m src.agent_chat_client
 ```
 
 3. Start chatting with the financial advisor agent:
