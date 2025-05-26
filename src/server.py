@@ -107,11 +107,19 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Run the FMP MCP Server")
     parser.add_argument("--sse", action="store_true", help="Run as an SSE server")
+    parser.add_argument("--streamable-http", action="store_true", help="Run as a Streamable HTTP server")
+    parser.add_argument("--stateless", action="store_true", help="Run in stateless mode (for Streamable HTTP)")
+    parser.add_argument("--json-response", action="store_true", help="Use JSON responses instead of SSE streams")
     default_port = int(os.environ.get("PORT", 8000))
-    parser.add_argument("--port", type=int, default=default_port, help=f"Port for SSE server (default: {default_port})")
-    parser.add_argument("--host", type=str, default="0.0.0.0", help="Host for SSE server (default: 0.0.0.0)")
+    parser.add_argument("--port", type=int, default=default_port, help=f"Port for server (default: {default_port})")
+    parser.add_argument("--host", type=str, default="0.0.0.0", help="Host for server (default: 0.0.0.0)")
     
     args = parser.parse_args()
+    
+    # Check for conflicting transport options
+    if args.sse and args.streamable_http:
+        print("Error: Cannot specify both --sse and --streamable-http")
+        sys.exit(1)
     
     if args.sse:
         import uvicorn
@@ -128,6 +136,118 @@ if __name__ == "__main__":
         # Print information message
         print(f"Starting FMP MCP Server (SSE mode) on http://{args.host}:{args.port}")
         print(f"API Key configured: {'Yes' if os.environ.get('FMP_API_KEY') else 'No - using demo mode'}")
+        
+        # Run the server
+        uvicorn.run(app, host=args.host, port=args.port)
+    elif args.streamable_http:
+        import uvicorn
+        from starlette.applications import Starlette
+        from starlette.routing import Mount
+        
+        # Determine mode description
+        if args.stateless:
+            mode_desc = "stateless" + (" JSON" if args.json_response else " SSE")
+        else:
+            mode_desc = "stateful" + (" JSON" if args.json_response else " SSE")
+        
+        print(f"Starting FMP MCP Server (Streamable HTTP {mode_desc} mode) on http://{args.host}:{args.port}")
+        print(f"API Key configured: {'Yes' if os.environ.get('FMP_API_KEY') else 'No - using demo mode'}")
+        print(f"Streamable HTTP endpoint: http://{args.host}:{args.port}/mcp")
+        
+        # Configure the main mcp instance for the requested mode
+        # We need to recreate the FastMCP instance with the correct configuration
+        from mcp.server.fastmcp import FastMCP
+        
+        # Create new FastMCP instance with desired configuration
+        streamable_mcp = FastMCP(
+            "FMP Financial Data",
+            description="Financial data tools and resources powered by Financial Modeling Prep API",
+            dependencies=["httpx"],
+            stateless_http=args.stateless,
+            json_response=args.json_response
+        )
+        
+        # Re-register all tools using the same decorators approach
+        # Import tools
+        from src.tools.company import get_company_profile, get_company_notes
+        from src.tools.statements import get_income_statement
+        from src.tools.search import search_by_symbol, search_by_name
+        from src.tools.quote import get_quote, get_quote_change, get_aftermarket_quote
+        from src.tools.charts import get_price_change
+        from src.tools.analyst import get_ratings_snapshot, get_financial_estimates, get_price_target_news, get_price_target_latest_news
+        from src.tools.calendar import get_company_dividends, get_dividends_calendar
+        from src.tools.indices import get_index_list, get_index_quote
+        from src.tools.market_performers import get_biggest_gainers, get_biggest_losers, get_most_active
+        from src.tools.market_hours import get_market_hours
+        from src.tools.etf import get_etf_sectors, get_etf_countries, get_etf_holdings
+        from src.tools.commodities import get_commodities_list, get_commodities_prices, get_historical_price_eod_light
+        from src.tools.crypto import get_crypto_list, get_crypto_quote
+        from src.tools.forex import get_forex_list, get_forex_quotes
+        from src.tools.technical_indicators import get_ema
+        
+        # Import resources
+        from src.resources.company import get_stock_info_resource, get_financial_statement_resource, get_stock_peers_resource, get_price_targets_resource
+        from src.resources.market import get_market_snapshot_resource
+        
+        # Import prompts
+        from src.prompts.templates import (
+            company_analysis, financial_statement_analysis, stock_comparison,
+            market_outlook, investment_idea_generation, technical_analysis,
+            economic_indicator_analysis
+        )
+        
+        # Register tools
+        streamable_mcp.tool()(get_company_profile)
+        streamable_mcp.tool()(get_company_notes)
+        streamable_mcp.tool()(get_quote)
+        streamable_mcp.tool()(get_quote_change)
+        streamable_mcp.tool()(get_aftermarket_quote)
+        streamable_mcp.tool()(get_price_change)
+        streamable_mcp.tool()(get_income_statement)
+        streamable_mcp.tool()(search_by_symbol)
+        streamable_mcp.tool()(search_by_name)
+        streamable_mcp.tool()(get_ratings_snapshot)
+        streamable_mcp.tool()(get_financial_estimates)
+        streamable_mcp.tool()(get_price_target_news)
+        streamable_mcp.tool()(get_price_target_latest_news)
+        streamable_mcp.tool()(get_company_dividends)
+        streamable_mcp.tool()(get_dividends_calendar)
+        streamable_mcp.tool()(get_index_list)
+        streamable_mcp.tool()(get_index_quote)
+        streamable_mcp.tool()(get_biggest_gainers)
+        streamable_mcp.tool()(get_biggest_losers)
+        streamable_mcp.tool()(get_most_active)
+        streamable_mcp.tool()(get_market_hours)
+        streamable_mcp.tool()(get_commodities_list)
+        streamable_mcp.tool()(get_commodities_prices)
+        streamable_mcp.tool()(get_historical_price_eod_light)
+        streamable_mcp.tool()(get_crypto_list)
+        streamable_mcp.tool()(get_crypto_quote)
+        streamable_mcp.tool()(get_forex_list)
+        streamable_mcp.tool()(get_forex_quotes)
+        streamable_mcp.tool()(get_ema)
+        
+        # Register resources
+        streamable_mcp.resource("stock-info://{symbol}")(get_stock_info_resource)
+        streamable_mcp.resource("market-snapshot://current")(get_market_snapshot_resource)
+        streamable_mcp.resource("stock-peers://{symbol}")(get_stock_peers_resource)
+        streamable_mcp.resource("price-targets://{symbol}")(get_price_targets_resource)
+        
+        # Register prompts
+        streamable_mcp.prompt()(company_analysis)
+        streamable_mcp.prompt()(financial_statement_analysis)
+        streamable_mcp.prompt()(stock_comparison)
+        streamable_mcp.prompt()(market_outlook)
+        streamable_mcp.prompt()(investment_idea_generation)
+        streamable_mcp.prompt()(technical_analysis)
+        streamable_mcp.prompt()(economic_indicator_analysis)
+        
+        # Create Starlette app with Streamable HTTP app mounted
+        app = Starlette(
+            routes=[
+                Mount("/mcp", app=streamable_mcp.streamable_http_app()),
+            ]
+        )
         
         # Run the server
         uvicorn.run(app, host=args.host, port=args.port)

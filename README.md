@@ -21,6 +21,9 @@ A Model Context Protocol (MCP) server that provides tools, resources, and prompt
 - **Technical Indicators**: Calculate and interpret Exponential Moving Average (EMA)
 - **Analysis Prompts**: Generate investment analyses using predefined prompt templates
 - **Chat Agent**: Interactive CLI chat interface to FMP MCP Server
+- **Multiple Transport Options**: Support for stdio, SSE, and Streamable HTTP transports
+- **Stateful & Stateless Modes**: Flexible deployment options for different use cases
+- **Docker Support**: Containerized deployment with configurable transport modes
 
 ## Code Organization
 
@@ -335,6 +338,49 @@ mcp install src/server.py
 ```bash
 # Run as an SSE server
 python -m src.server --sse --port 8000
+```
+
+#### Streamable HTTP Server Mode
+
+> **Note**: Streamable HTTP transport is the recommended transport for production deployments, superseding SSE transport.
+
+The server supports Streamable HTTP transport with both stateful and stateless operation modes:
+
+```bash
+# Stateful Streamable HTTP (maintains session state)
+python -m src.server --streamable-http --port 8000
+
+# Stateless Streamable HTTP (no session persistence)
+python -m src.server --streamable-http --stateless --port 8000
+
+# Stateless with JSON responses (instead of SSE streams)
+python -m src.server --streamable-http --stateless --json-response --port 8000
+```
+
+**Transport Modes:**
+
+- **Stateful** (default): Maintains session state, supports event resumability, ideal for interactive clients
+- **Stateless**: No session persistence, suitable for multi-node deployments and load balancing
+- **JSON Response**: Returns JSON instead of SSE streams, useful for simpler HTTP clients
+
+**Endpoints:**
+- Streamable HTTP endpoint: `http://localhost:8000/mcp`
+- All MCP operations (tools, resources, prompts) available via HTTP POST/GET
+
+**Docker Support:**
+
+```bash
+# Default SSE mode
+docker run -p 8000:8000 -v $(pwd)/.env:/app/.env ghcr.io/cdtait/fmp-mcp-server:latest
+
+# Streamable HTTP stateful mode
+docker run -p 8000:8000 -e TRANSPORT=streamable-http -v $(pwd)/.env:/app/.env ghcr.io/cdtait/fmp-mcp-server:latest
+
+# Streamable HTTP stateless mode
+docker run -p 8000:8000 -e TRANSPORT=streamable-http -e STATELESS=true -v $(pwd)/.env:/app/.env ghcr.io/cdtait/fmp-mcp-server:latest
+
+# Streamable HTTP stateless JSON mode
+docker run -p 8000:8000 -e TRANSPORT=streamable-http -e STATELESS=true -e JSON_RESPONSE=true -v $(pwd)/.env:/app/.env ghcr.io/cdtait/fmp-mcp-server:latest
 ```
 
 #### Troubleshooting

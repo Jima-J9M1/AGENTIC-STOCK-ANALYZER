@@ -24,6 +24,9 @@ RUN touch ./.env
 # Environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8000
+ENV TRANSPORT=sse
+ENV STATELESS=false
+ENV JSON_RESPONSE=false
 
 # Expose the port the server will run on
 EXPOSE ${PORT}
@@ -34,5 +37,22 @@ RUN chown -R appuser:appuser /app
 # Switch to non-root user
 USER appuser
 
-# Set the command to run the server in SSE mode using shell form to access environment variables
-CMD python -m src.server --sse --port ${PORT} --host 0.0.0.0
+# Create entrypoint script for flexible transport configuration
+RUN echo '#!/bin/sh' > /app/entrypoint.sh && \
+    echo 'ARGS="--port ${PORT} --host 0.0.0.0"' >> /app/entrypoint.sh && \
+    echo 'if [ "$TRANSPORT" = "sse" ]; then' >> /app/entrypoint.sh && \
+    echo '    ARGS="$ARGS --sse"' >> /app/entrypoint.sh && \
+    echo 'elif [ "$TRANSPORT" = "streamable-http" ]; then' >> /app/entrypoint.sh && \
+    echo '    ARGS="$ARGS --streamable-http"' >> /app/entrypoint.sh && \
+    echo '    if [ "$STATELESS" = "true" ]; then' >> /app/entrypoint.sh && \
+    echo '        ARGS="$ARGS --stateless"' >> /app/entrypoint.sh && \
+    echo '    fi' >> /app/entrypoint.sh && \
+    echo '    if [ "$JSON_RESPONSE" = "true" ]; then' >> /app/entrypoint.sh && \
+    echo '        ARGS="$ARGS --json-response"' >> /app/entrypoint.sh && \
+    echo '    fi' >> /app/entrypoint.sh && \
+    echo 'fi' >> /app/entrypoint.sh && \
+    echo 'exec python -m src.server $ARGS' >> /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh
+
+# Use the entrypoint script
+CMD ["/app/entrypoint.sh"]
