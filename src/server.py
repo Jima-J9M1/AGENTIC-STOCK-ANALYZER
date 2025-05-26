@@ -152,7 +152,8 @@ if __name__ == "__main__":
         
         print(f"Starting FMP MCP Server (Streamable HTTP {mode_desc} mode) on http://{args.host}:{args.port}")
         print(f"API Key configured: {'Yes' if os.environ.get('FMP_API_KEY') else 'No - using demo mode'}")
-        print(f"Streamable HTTP endpoint: http://{args.host}:{args.port}/mcp")
+        print(f"Streamable HTTP endpoint: http://{args.host}:{args.port}/mcp/")
+        print(f"Note: Use the endpoint URL with trailing slash in MCP Inspector")
         
         # Configure the main mcp instance for the requested mode
         # We need to recreate the FastMCP instance with the correct configuration
@@ -242,12 +243,8 @@ if __name__ == "__main__":
         streamable_mcp.prompt()(technical_analysis)
         streamable_mcp.prompt()(economic_indicator_analysis)
         
-        # Create Starlette app with Streamable HTTP app mounted
-        app = Starlette(
-            routes=[
-                Mount("/mcp", app=streamable_mcp.streamable_http_app()),
-            ]
-        )
+        # Mount the streamable HTTP app at root - FastMCP handles /mcp internally
+        app = streamable_mcp.streamable_http_app()
         
         # Run the server
         uvicorn.run(app, host=args.host, port=args.port)
