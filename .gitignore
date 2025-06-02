@@ -38,5 +38,6 @@ token.txt
 *.token
 *.key
 
-# Test scripts with hardcoded keys
+# Test scripts with hardcoded keys (but allow deployment scripts)
 scripts/
+!scripts/mcp-aws-ecs-setup.sh

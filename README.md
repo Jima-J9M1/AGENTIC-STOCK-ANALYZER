@@ -286,6 +286,8 @@ fmp-mcp-server/
 │   ├── prompts/              # MCP prompts implementation
 │   │   └── templates.py
 │   └── agent_chat_client.py  # OpenAI Agent-based chat client
+├── scripts/                  # Deployment and automation scripts
+│   └── mcp-aws-ecs-setup.sh  # AWS ECS deployment script
 ├── tests/                    # Test suite
 │   ├── conftest.py           # Pytest fixtures
 │   ├── acceptance_tests.py   # API integration tests
@@ -700,6 +702,126 @@ docker pull ghcr.io/cdtait/fmp-mcp-server:v1.2.3           # Specific version
 ```
 
 See the [Using Docker](#using-docker) section for detailed instructions on running the container.
+
+## AWS ECS Deployment
+
+The project includes an automated AWS ECS deployment script that sets up a complete production environment with both SSE and Streamable HTTP services.
+
+### Prerequisites
+
+- AWS CLI v2 installed and configured
+- AWS IAM user with appropriate permissions
+- FMP API key
+- Container image (either from GitHub Container Registry or custom build)
+
+### Quick Setup
+
+The `scripts/mcp-aws-ecs-setup.sh` script provides an interactive setup process:
+
+```bash
+# Make the script executable
+chmod +x scripts/mcp-aws-ecs-setup.sh
+
+# Run the setup script
+./scripts/mcp-aws-ecs-setup.sh
+```
+
+The script will prompt for:
+- **AWS Region** (e.g., eu-west-2, us-east-1)
+- **ECS Cluster Name** (e.g., mcp-cluster)
+- **Task Definition Names** (e.g., mcp-task, mcp-task-stream)
+- **Container Image** (e.g., ghcr.io/cdtait/fmp-mcp-server:latest)
+- **FMP API Key** (your Financial Modeling Prep API key)
+
+### Environment Variables
+
+You can pre-configure the deployment by setting environment variables:
+
+```bash
+# Create a .env file
+cat > .env << EOF
+REGION=eu-west-2
+CLUSTER_NAME=mcp-cluster
+TASK_FAMILY_SSE=mcp-task
+TASK_FAMILY_STREAM=mcp-task-stream
+CONTAINER_IMAGE=ghcr.io/cdtait/fmp-mcp-server:latest
+FMP_API_KEY=your_api_key_here
+EOF
+
+# Source the environment
+source .env
+
+# Run the script (no prompts)
+./scripts/mcp-aws-ecs-setup.sh
+```
+
+### What the Script Creates
+
+The deployment script automatically sets up:
+
+1. **AWS CLI v2** installation and configuration
+2. **ECS Cluster** with Fargate capacity providers
+3. **IAM Roles** (ecsTaskExecutionRole if needed)
+4. **Security Groups** with ports 8000 and 8001 open
+5. **Task Definitions**:
+   - SSE service (port 8000)
+   - Streamable HTTP service (port 8001)
+6. **ECS Services** running both transport modes
+7. **Public IP endpoints** for accessing the services
+
+### Post-Deployment
+
+After successful deployment, you'll get output like:
+
+```
+=== SETUP COMPLETE ===
+
+Cluster: mcp-cluster
+Region: eu-west-2
+
+Services:
+1. mcp-task-service-abc123 (SSE):
+   - Endpoint: http://54.123.45.67:8000
+   - Transport: SSE
+   - Task Definition: mcp-task:1
+
+2. mcp-task-service-def456 (Streamable HTTP):
+   - Endpoint: http://34.567.89.12:8001
+   - Transport: streamable-http
+   - Task Definition: mcp-task-stream:1
+
+Test commands:
+curl http://54.123.45.67:8000
+curl http://34.567.89.12:8001
+```
+
+### Management Commands
+
+The script also provides useful management commands:
+
+```bash
+# List clusters
+aws ecs list-clusters --region eu-west-2
+
+# List services
+aws ecs list-services --region eu-west-2 --cluster mcp-cluster
+
+# Update services (force new deployment)
+aws ecs update-service --region eu-west-2 --cluster mcp-cluster --service SERVICE_NAME --force-new-deployment
+
+# Scale services
+aws ecs update-service --region eu-west-2 --cluster mcp-cluster --service SERVICE_NAME --desired-count 2
+
+# View logs
+aws logs tail /ecs/mcp-task --region eu-west-2 --follow
+```
+
+### Security Considerations
+
+- The script uses secure prompts for API keys
+- Security groups are configured with specific port access (8000, 8001)
+- IAM roles follow the principle of least privilege
+- API keys are never logged or displayed in full
 
 ### Coverage Reporting
 
