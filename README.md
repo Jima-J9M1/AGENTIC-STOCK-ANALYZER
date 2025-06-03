@@ -705,123 +705,242 @@ See the [Using Docker](#using-docker) section for detailed instructions on runni
 
 ## AWS ECS Deployment
 
-The project includes an automated AWS ECS deployment script that sets up a complete production environment with both SSE and Streamable HTTP services.
+The project includes comprehensive AWS ECS deployment automation with production-ready features including load balancing, service discovery, and duplicate detection.
+
+### Available Deployment Scripts
+
+The following scripts are available in the `scripts/` directory:
+
+- **`mcp-aws-ecs-setup.sh`** - Main ECS deployment script with duplicate detection
+- **`add-load-balancer.sh`** - Adds Application Load Balancer for stable external access
+- **`add-service-discovery.sh`** - Adds AWS Cloud Map service discovery for internal communication  
+- **`cleanup-duplicates.sh`** - Identifies and removes duplicate services
 
 ### Prerequisites
 
 - AWS CLI v2 installed and configured
-- AWS IAM user with appropriate permissions
+- AWS IAM user with comprehensive permissions:
+  - `AmazonECS_FullAccess`
+  - `AmazonEC2ReadOnlyAccess` 
+  - `IAMFullAccess` (or `CloudWatchLogsFullAccess` + `SecretsManagerReadWrite`)
+  - `CloudWatchReadOnlyAccess`
 - FMP API key
 - Container image (either from GitHub Container Registry or custom build)
 
 ### Quick Setup
 
-The `scripts/mcp-aws-ecs-setup.sh` script provides an interactive setup process:
+#### Step 1: Basic ECS Deployment
 
 ```bash
-# Make the script executable
-chmod +x scripts/mcp-aws-ecs-setup.sh
+# Make scripts executable
+chmod +x scripts/*.sh
 
-# Run the setup script
+# Run the main setup script
 ./scripts/mcp-aws-ecs-setup.sh
 ```
 
 The script will prompt for:
 - **AWS Region** (e.g., eu-west-2, us-east-1)
 - **ECS Cluster Name** (e.g., mcp-cluster)
-- **Task Definition Names** (e.g., mcp-task, mcp-task-stream)
+- **Task Definition Name** (e.g., mcp-task-stream)
 - **Container Image** (e.g., ghcr.io/cdtait/fmp-mcp-server:latest)
-- **FMP API Key** (your Financial Modeling Prep API key)
+- **Port Number** (e.g., 8000, 8001)
+- **FMP API Key** (stored securely in AWS Secrets Manager)
+
+#### Step 2: Add Load Balancer (Recommended)
+
+```bash
+# Add Application Load Balancer for stable external access
+./scripts/add-load-balancer.sh
+```
+
+This provides a stable DNS name like `mcp-alb-123456789.eu-west-2.elb.amazonaws.com` instead of changing IP addresses.
+
+#### Step 3: Add Service Discovery (Optional)
+
+```bash
+# Add AWS Cloud Map for internal service discovery
+./scripts/add-service-discovery.sh
+```
+
+This enables services to find each other using DNS names like `mcp-streamable.fmp-mcp-services` within the VPC.
+
+### Duplicate Detection & Prevention
+
+All scripts include intelligent duplicate detection:
+
+#### ECS Setup Script Features:
+- **Detects existing services** with the same task definition
+- **Warns about functional duplicates** before creating new services
+- **Offers three options**:
+  1. Update existing service (recommended)
+  2. Create new service anyway (may cause duplicates)
+  3. Exit and cleanup manually
+
+#### Example Duplicate Detection Output:
+```bash
+🔄 DUPLICATE DETECTED: Service 'mcp-streamable-service-a1a90073' already uses task family 'mcp-task-stream'
+
+🚨 DUPLICATE SERVICE DETECTED! 🚨
+Service 'mcp-streamable-service-a1a90073' already runs the same task definition family 'mcp-task-stream'
+
+Recommended actions:
+1. Update existing service 'mcp-streamable-service-a1a90073' (RECOMMENDED)
+2. Create new service anyway (will cause duplicates and extra costs)
+3. Exit and cleanup manually
+```
+
+#### Cleanup Duplicate Services:
+```bash
+# Check for and remove duplicate services
+./scripts/cleanup-duplicates.sh
+```
+
+This script:
+- Identifies services using identical task definitions
+- Shows which services have load balancers (to keep)
+- Offers automatic cleanup of duplicate services
+- Provides manual cleanup commands
 
 ### Environment Variables
 
-You can pre-configure the deployment by setting environment variables:
+You can pre-configure deployments by setting environment variables:
 
 ```bash
-# Create a .env file
+# Create deployment configuration
 cat > .env << EOF
 REGION=eu-west-2
 CLUSTER_NAME=mcp-cluster
-TASK_FAMILY_SSE=mcp-task
-TASK_FAMILY_STREAM=mcp-task-stream
+TASK_FAMILY=mcp-task-stream
 CONTAINER_IMAGE=ghcr.io/cdtait/fmp-mcp-server:latest
+PORT=8001
 FMP_API_KEY=your_api_key_here
 EOF
 
 # Source the environment
 source .env
 
-# Run the script (no prompts)
+# Run scripts without prompts
 ./scripts/mcp-aws-ecs-setup.sh
+./scripts/add-load-balancer.sh
 ```
 
-### What the Script Creates
+### What the Scripts Create
 
-The deployment script automatically sets up:
-
-1. **AWS CLI v2** installation and configuration
+#### Basic ECS Setup (`mcp-aws-ecs-setup.sh`):
+1. **AWS CLI v2** installation (if needed)
 2. **ECS Cluster** with Fargate capacity providers
-3. **IAM Roles** (ecsTaskExecutionRole if needed)
-4. **Security Groups** with ports 8000 and 8001 open
-5. **Task Definitions**:
-   - SSE service (port 8000)
-   - Streamable HTTP service (port 8001)
-6. **ECS Services** running both transport modes
-7. **Public IP endpoints** for accessing the services
+3. **IAM Roles** with CloudWatch Logs and Secrets Manager permissions
+4. **Security Groups** with configurable port access
+5. **Secrets Manager** integration for secure API key storage
+6. **ECS Service** with streamable HTTP transport
+7. **Public IP endpoint** for direct access
+
+#### Load Balancer Setup (`add-load-balancer.sh`):
+1. **Application Load Balancer** (internet-facing)
+2. **Target Group** with health checks (HTTP 307 redirect detection)
+3. **Security Group Rules** for ALB ↔ ECS communication
+4. **Stable DNS endpoint** for external access
+5. **Automatic health monitoring** and failover
+
+#### Service Discovery Setup (`add-service-discovery.sh`):
+1. **AWS Cloud Map** private DNS namespace
+2. **Service registration** for automatic discovery
+3. **Internal DNS names** for service-to-service communication
+4. **Health checking** and automatic registration/deregistration
 
 ### Post-Deployment
 
-After successful deployment, you'll get output like:
-
-```
+#### Basic Deployment Output:
+```bash
 === SETUP COMPLETE ===
 
 Cluster: mcp-cluster
 Region: eu-west-2
 
-Services:
-1. mcp-task-service-abc123 (SSE):
-   - Endpoint: http://54.123.45.67:8000
-   - Transport: SSE
-   - Task Definition: mcp-task:1
+Service: mcp-streamable-service-abc123
+- Endpoint: http://3.10.53.254:8001/mcp/
+- Transport: streamable-http (stateless)
+- Task Definition: mcp-task-stream:1
 
-2. mcp-task-service-def456 (Streamable HTTP):
-   - Endpoint: http://34.567.89.12:8001
-   - Transport: streamable-http
-   - Task Definition: mcp-task-stream:1
+Test command:
+curl http://3.10.53.254:8001/mcp/meta
+
+MCP Inspector Connection URL:
+http://3.10.53.254:8001/mcp/
+```
+
+#### With Load Balancer:
+```bash
+=== APPLICATION LOAD BALANCER SETUP COMPLETE ===
+
+Load Balancer: mcp-alb
+DNS Name: mcp-alb-689612947.eu-west-2.elb.amazonaws.com
+
+Your service is now accessible at:
+http://mcp-alb-689612947.eu-west-2.elb.amazonaws.com/mcp/meta
 
 Test commands:
-curl http://54.123.45.67:8000
-curl http://34.567.89.12:8001
+curl http://mcp-alb-689612947.eu-west-2.elb.amazonaws.com/mcp/meta
+curl http://mcp-alb-689612947.eu-west-2.elb.amazonaws.com/mcp/
 ```
 
-### Management Commands
+#### With Service Discovery:
+```bash
+=== SERVICE DISCOVERY SETUP COMPLETE ===
 
-The script also provides useful management commands:
+Namespace: fmp-mcp-services
+Service: mcp-streamable
+DNS Name: mcp-streamable.fmp-mcp-services
+
+Your service can now be reached at:
+- Internal DNS: mcp-streamable.fmp-mcp-services
+- From within the VPC: http://mcp-streamable.fmp-mcp-services:8001
+```
+
+### Scaling and Management
 
 ```bash
-# List clusters
-aws ecs list-clusters --region eu-west-2
-
-# List services
-aws ecs list-services --region eu-west-2 --cluster mcp-cluster
-
-# Update services (force new deployment)
-aws ecs update-service --region eu-west-2 --cluster mcp-cluster --service SERVICE_NAME --force-new-deployment
-
-# Scale services
+# Scale service to 2 instances for high availability
 aws ecs update-service --region eu-west-2 --cluster mcp-cluster --service SERVICE_NAME --desired-count 2
 
+# Force new deployment (useful for updates)
+aws ecs update-service --region eu-west-2 --cluster mcp-cluster --service SERVICE_NAME --force-new-deployment
+
+# View service status
+aws ecs describe-services --region eu-west-2 --cluster mcp-cluster --services SERVICE_NAME
+
+# Check load balancer health
+aws elbv2 describe-target-health --region eu-west-2 --target-group-arn TARGET_GROUP_ARN
+
 # View logs
-aws logs tail /ecs/mcp-task --region eu-west-2 --follow
+aws logs tail /ecs/mcp-task-stream --region eu-west-2 --follow
 ```
 
-### Security Considerations
+### Health Checks
 
-- The script uses secure prompts for API keys
-- Security groups are configured with specific port access (8000, 8001)
-- IAM roles follow the principle of least privilege
-- API keys are never logged or displayed in full
+The load balancer uses intelligent health checking:
+- **Health Check Path**: `/mcp` (returns HTTP 307 redirect)
+- **Expected Response**: HTTP 307 (indicates service is responding correctly)
+- **Automatic Failover**: Unhealthy instances are replaced automatically
+- **Cross-AZ Distribution**: Instances spread across availability zones
+
+### Security Features
+
+- **API keys stored in AWS Secrets Manager** (not environment variables)
+- **Security groups** with minimal required access
+- **IAM roles** following principle of least privilege
+- **VPC isolation** for internal service communication
+- **HTTPS-ready** load balancer configuration
+
+### Best Practices
+
+1. **Always use the load balancer** for production external access
+2. **Scale to at least 2 instances** for high availability
+3. **Use service discovery** for multi-service architectures
+4. **Run cleanup script** before re-deployment to avoid duplicates
+5. **Monitor CloudWatch logs** for application health
+6. **Use secrets manager** for sensitive configuration
 
 ### Coverage Reporting
 

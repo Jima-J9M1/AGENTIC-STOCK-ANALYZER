@@ -41,3 +41,6 @@ token.txt
 # Test scripts with hardcoded keys (but allow deployment scripts)
 scripts/
 !scripts/mcp-aws-ecs-setup.sh
+!scripts/add-load-balancer.sh
+!scripts/add-service-discovery.sh
+!scripts/cleanup-duplicates.sh

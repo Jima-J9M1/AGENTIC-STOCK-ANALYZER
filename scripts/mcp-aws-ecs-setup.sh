@@ -56,8 +56,15 @@ if [ -z "$CONTAINER_IMAGE" ]; then
     fi
 fi
 
-# Default port
-PORT=8000
+if [ -z "$PORT" ]; then
+    echo "PORT not found in environment."
+    echo -n "Please enter port number (e.g., 8000, 8001): "
+    read -r PORT
+    if [ -z "$PORT" ]; then
+        echo "Error: PORT cannot be empty"
+        exit 1
+    fi
+fi
 
 echo "=== FMP MCP Server ECS Setup ==="
 echo "Region: $REGION"
@@ -69,12 +76,12 @@ echo "FMP API Key: ${FMP_API_KEY:0:8}... (truncated for security)"
 echo ""
 
 # 1. Install/Update AWS CLI v2
-echo "Step 1: Installing AWS CLI v2..."
-sudo yum remove awscli -y || true
-curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-unzip awscliv2.zip
-sudo ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
-rm -rf awscliv2.zip aws/
+#echo "Step 1: Installing AWS CLI v2..."
+#sudo yum remove awscli -y || true
+#curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+#unzip awscliv2.zip
+#sudo ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
+#rm -rf awscliv2.zip aws/
 
 # Verify installation
 aws --version
@@ -161,6 +168,11 @@ if [ -z "$EXECUTION_ROLE_ARN" ]; then
     aws iam attach-role-policy \
         --role-name ecsTaskExecutionRole \
         --policy-arn arn:aws:iam::aws:policy/SecretsManagerReadWrite
+        
+    # Attach CloudWatch Logs policy
+    aws iam attach-role-policy \
+        --role-name ecsTaskExecutionRole \
+        --policy-arn arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
     
     EXECUTION_ROLE_ARN=$(aws iam get-role --role-name ecsTaskExecutionRole --query 'Role.Arn' --output text)
     echo "Created execution role: $EXECUTION_ROLE_ARN"
@@ -175,6 +187,16 @@ else
         aws iam attach-role-policy \
             --role-name ecsTaskExecutionRole \
             --policy-arn arn:aws:iam::aws:policy/SecretsManagerReadWrite
+    fi
+    
+    # Check if CloudWatchLogsFullAccess policy is attached
+    LOGS_POLICY_ATTACHED=$(aws iam list-attached-role-policies --role-name ecsTaskExecutionRole --query "AttachedPolicies[?PolicyName=='CloudWatchLogsFullAccess'].PolicyArn" --output text)
+    
+    if [ -z "$LOGS_POLICY_ATTACHED" ]; then
+        echo "Attaching CloudWatchLogsFullAccess policy to ecsTaskExecutionRole..."
+        aws iam attach-role-policy \
+            --role-name ecsTaskExecutionRole \
+            --policy-arn arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
     fi
 fi
 
@@ -294,20 +316,120 @@ echo "Task definition $TASK_FAMILY:1 created"
 
 # 10. Create ECS Service for Streamable HTTP
 echo "Step 10: Creating ECS service - mcp-streamable-service..."
-SERVICE_NAME="mcp-streamable-service-$(openssl rand -hex 4)"
 
-aws ecs create-service \
+# Check for existing services
+EXISTING_SERVICES=$(aws ecs list-services \
     --region $REGION \
     --cluster $CLUSTER_NAME \
-    --service-name $SERVICE_NAME \
-    --task-definition $TASK_FAMILY:1 \
-    --desired-count 1 \
-    --capacity-provider-strategy capacityProvider=FARGATE,weight=1 \
-    --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SECURITY_GROUP_ID],assignPublicIp=ENABLED}" \
-    --enable-ecs-managed-tags \
-    --deployment-configuration "deploymentCircuitBreaker={enable=true,rollback=true},maximumPercent=200,minimumHealthyPercent=100"
+    --query 'serviceArns' \
+    --output text)
 
-echo "Service created: $SERVICE_NAME"
+if [ -n "$EXISTING_SERVICES" ]; then
+    echo ""
+    echo "*** WARNING: Found existing services in cluster $CLUSTER_NAME ***"
+    
+    # Check for services using the same task definition
+    SAME_TASKDEF_SERVICE=""
+    for SERVICE_ARN in $EXISTING_SERVICES; do
+        SERVICE_NAME=$(basename $SERVICE_ARN)
+        CURRENT_TASKDEF=$(aws ecs describe-services \
+            --region $REGION \
+            --cluster $CLUSTER_NAME \
+            --services $SERVICE_NAME \
+            --query 'services[0].taskDefinition' \
+            --output text)
+        
+        # Extract just the family name (without revision)
+        CURRENT_FAMILY=$(echo $CURRENT_TASKDEF | cut -d':' -f6 | cut -d'/' -f2)
+        
+        if [[ "$CURRENT_FAMILY" == "$TASK_FAMILY"* ]]; then
+            SAME_TASKDEF_SERVICE=$SERVICE_NAME
+            echo "🔄 DUPLICATE DETECTED: Service '$SERVICE_NAME' already uses task family '$TASK_FAMILY'"
+            break
+        fi
+    done
+    
+    aws ecs describe-services \
+        --region $REGION \
+        --cluster $CLUSTER_NAME \
+        --services $EXISTING_SERVICES \
+        --query 'services[*].{Name:serviceName,Status:status,Desired:desiredCount,Running:runningCount,TaskDef:taskDefinition}' \
+        --output table
+    
+    if [ -n "$SAME_TASKDEF_SERVICE" ]; then
+        echo ""
+        echo "🚨 DUPLICATE SERVICE DETECTED! 🚨"
+        echo "Service '$SAME_TASKDEF_SERVICE' already runs the same task definition family '$TASK_FAMILY'"
+        echo ""
+        echo "Recommended actions:"
+        echo "1. Update existing service '$SAME_TASKDEF_SERVICE' (RECOMMENDED)"
+        echo "2. Create new service anyway (will cause duplicates and extra costs)"
+        echo "3. Exit and cleanup manually"
+    else
+        echo ""
+        echo "No duplicate task definitions found."
+        echo "Options:"
+        echo "1. Create new service"
+        echo "2. Update existing service"
+        echo "3. Exit and cleanup manually"
+    fi
+    echo ""
+    echo -n "Choose option [1-3]: "
+    
+    case $CHOICE in
+        1)
+            echo "Creating new service..."
+            SERVICE_NAME="mcp-streamable-service-$(openssl rand -hex 4)"
+            ;;
+        2)
+            # Use the service with same task definition if found, otherwise first service
+            if [ -n "$SAME_TASKDEF_SERVICE" ]; then
+                SERVICE_NAME=$SAME_TASKDEF_SERVICE
+            else
+                EXISTING_SERVICE_ARN=$(echo $EXISTING_SERVICES | cut -d' ' -f1)
+                SERVICE_NAME=$(basename $EXISTING_SERVICE_ARN)
+            fi
+            echo "Will update existing service: $SERVICE_NAME"
+            SKIP_SERVICE_CREATION=true
+            ;;
+        3)
+            echo "Exiting. Please cleanup existing services first."
+            echo "To delete a service: aws ecs delete-service --region $REGION --cluster $CLUSTER_NAME --service <service-name>"
+            exit 0
+            ;;
+        *)
+            echo "Invalid choice. Exiting."
+            exit 1
+            ;;
+    esac
+else
+    SERVICE_NAME="mcp-streamable-service-$(openssl rand -hex 4)"
+fi
+
+if [ "$SKIP_SERVICE_CREATION" != "true" ]; then
+    aws ecs create-service \
+        --region $REGION \
+        --cluster $CLUSTER_NAME \
+        --service-name $SERVICE_NAME \
+        --task-definition $TASK_FAMILY:1 \
+        --desired-count 1 \
+        --capacity-provider-strategy capacityProvider=FARGATE,weight=1 \
+        --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SECURITY_GROUP_ID],assignPublicIp=ENABLED}" \
+        --enable-ecs-managed-tags \
+        --deployment-configuration "deploymentCircuitBreaker={enable=true,rollback=true},maximumPercent=200,minimumHealthyPercent=100"
+    
+    echo "Service created: $SERVICE_NAME"
+else
+    echo "Updating existing service: $SERVICE_NAME"
+    aws ecs update-service \
+        --region $REGION \
+        --cluster $CLUSTER_NAME \
+        --service $SERVICE_NAME \
+        --task-definition $TASK_FAMILY:1 \
+        --force-new-deployment
+    
+    echo "Service updated: $SERVICE_NAME"
+fi
 
 # 11. Wait for service to become stable
 echo "Step 11: Waiting for service to become stable..."
