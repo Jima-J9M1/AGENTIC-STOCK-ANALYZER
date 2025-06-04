@@ -253,18 +253,18 @@ if __name__ == "__main__":
         streamable_mcp.prompt()(technical_analysis)
         streamable_mcp.prompt()(economic_indicator_analysis)
         
-        # Health check endpoint
+        # Get the FastMCP streamable HTTP app
+        app = streamable_mcp.streamable_http_app()
+        
+        # Add health check route to the FastMCP app
+        from starlette.routing import Route
         async def health_check(request):
             _ = request  # Suppress unused parameter warning
             return JSONResponse({"status": "healthy", "service": "fmp-mcp-server"})
         
-        # Create Starlette app with health check and MCP routes
-        app = Starlette(
-            routes=[
-                Route("/health", health_check, methods=["GET"]),
-                Mount("/", app=streamable_mcp.streamable_http_app()),
-            ]
-        )
+        # Insert health check route at the beginning
+        health_route = Route("/health", health_check, methods=["GET"])
+        app.router.routes.insert(0, health_route)
         
         # Run the server
         uvicorn.run(app, host=args.host, port=args.port)
