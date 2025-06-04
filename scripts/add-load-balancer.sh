@@ -172,6 +172,35 @@ TARGET_GROUP_ARN=$(aws elbv2 describe-target-groups \
     --output text 2>/dev/null || echo "")
 
 if [ -z "$TARGET_GROUP_ARN" ] || [ "$TARGET_GROUP_ARN" = "None" ]; then
+    echo ""
+    echo "Choose health check endpoint:"
+    echo "1. /health - Dedicated health endpoint (RECOMMENDED)"
+    echo "2. /mcp/ - MCP redirect endpoint (legacy compatibility)"
+    echo ""
+    echo "Note: ALB health checks use GET requests only."
+    echo "/health returns HTTP 200, /mcp/ returns HTTP 307 redirect"
+    echo ""
+    echo -n "Choose option [1-2]: "
+    read -r HEALTH_CHOICE
+    
+    case $HEALTH_CHOICE in
+        1)
+            HEALTH_PATH="/health"
+            HEALTH_MATCHER="HttpCode=200"
+            echo "Using dedicated health endpoint: /health (GET → HTTP 200)"
+            ;;
+        2)
+            HEALTH_PATH="/mcp/"
+            HEALTH_MATCHER="HttpCode=307"
+            echo "Using MCP redirect endpoint: /mcp/ (GET → HTTP 307 redirect)"
+            ;;
+        *)
+            echo "Invalid choice. Using default: /health"
+            HEALTH_PATH="/health"
+            HEALTH_MATCHER="HttpCode=200"
+            ;;
+    esac
+    
     echo "Creating target group: $TARGET_GROUP_NAME"
     TARGET_GROUP_ARN=$(aws elbv2 create-target-group \
         --region $REGION \
@@ -181,19 +210,28 @@ if [ -z "$TARGET_GROUP_ARN" ] || [ "$TARGET_GROUP_ARN" = "None" ]; then
         --vpc-id $VPC_ID \
         --target-type ip \
         --health-check-enabled \
-        --health-check-path /mcp \
+        --health-check-path $HEALTH_PATH \
         --health-check-protocol HTTP \
         --health-check-interval-seconds 30 \
         --health-check-timeout-seconds 5 \
         --healthy-threshold-count 2 \
         --unhealthy-threshold-count 3 \
-        --matcher HttpCode=307 \
+        --matcher $HEALTH_MATCHER \
         --query 'TargetGroups[0].TargetGroupArn' \
         --output text)
     
     echo "Target group created: $TARGET_GROUP_ARN"
+    echo "Health check path: $HEALTH_PATH"
 else
     echo "Target group already exists: $TARGET_GROUP_ARN"
+    
+    # Get current health check path for information
+    CURRENT_HEALTH_PATH=$(aws elbv2 describe-target-groups \
+        --region $REGION \
+        --target-group-arns $TARGET_GROUP_ARN \
+        --query 'TargetGroups[0].HealthCheckPath' \
+        --output text)
+    echo "Current health check path: $CURRENT_HEALTH_PATH"
 fi
 
 # 6. Create ALB Listener
@@ -305,14 +343,22 @@ echo "DNS Name: $ALB_DNS"
 echo "Target Group: $TARGET_GROUP_NAME"
 echo ""
 echo "Your service is now accessible at:"
-echo "http://$ALB_DNS/mcp/meta"
+echo "http://$ALB_DNS/mcp/"
 echo ""
 echo "Test commands:"
-echo "curl http://$ALB_DNS/mcp/meta"
+echo ""
+echo "# Test health endpoint (ALB-compatible GET)"
+echo "curl http://$ALB_DNS/health"
+echo ""
+echo "# Test MCP redirect endpoint (ALB-compatible GET)"
 echo "curl http://$ALB_DNS/mcp/"
 echo ""
-echo "Health check endpoint:"
-echo "http://$ALB_DNS/mcp/meta"
+echo "# Test full MCP functionality (JSON-RPC POST)"
+echo "curl -L -X POST \\"
+echo "  -H \"Content-Type: application/json\" \\"
+echo "  -H \"Accept: application/json, text/event-stream\" \\"
+echo "  -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\",\"params\":{}}' \\"
+echo "  http://$ALB_DNS/mcp"
 echo ""
 echo "Note: DNS propagation may take a few minutes for the ALB name to resolve globally."
 echo ""

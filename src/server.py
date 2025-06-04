@@ -124,11 +124,18 @@ if __name__ == "__main__":
     if args.sse:
         import uvicorn
         from starlette.applications import Starlette
-        from starlette.routing import Mount
+        from starlette.routing import Mount, Route
+        from starlette.responses import JSONResponse
         
-        # Create Starlette app with MCP server mounted as SSE app
+        # Health check endpoint
+        async def health_check(request):
+            _ = request  # Suppress unused parameter warning
+            return JSONResponse({"status": "healthy", "service": "fmp-mcp-server"})
+        
+        # Create Starlette app with health check and MCP server mounted as SSE app
         app = Starlette(
             routes=[
+                Route("/health", health_check, methods=["GET"]),
                 Mount("/", app=mcp.sse_app()),
             ]
         )
@@ -142,7 +149,8 @@ if __name__ == "__main__":
     elif args.streamable_http:
         import uvicorn
         from starlette.applications import Starlette
-        from starlette.routing import Mount
+        from starlette.routing import Mount, Route
+        from starlette.responses import JSONResponse
         
         # Determine mode description
         if args.stateless:
@@ -180,14 +188,16 @@ if __name__ == "__main__":
         from src.tools.indices import get_index_list, get_index_quote
         from src.tools.market_performers import get_biggest_gainers, get_biggest_losers, get_most_active
         from src.tools.market_hours import get_market_hours
-        from src.tools.etf import get_etf_sectors, get_etf_countries, get_etf_holdings
+        # ETF tools temporarily disabled in server registration
+        # from src.tools.etf import get_etf_sectors, get_etf_countries, get_etf_holdings
         from src.tools.commodities import get_commodities_list, get_commodities_prices, get_historical_price_eod_light
         from src.tools.crypto import get_crypto_list, get_crypto_quote
         from src.tools.forex import get_forex_list, get_forex_quotes
         from src.tools.technical_indicators import get_ema
         
         # Import resources
-        from src.resources.company import get_stock_info_resource, get_financial_statement_resource, get_stock_peers_resource, get_price_targets_resource
+        from src.resources.company import get_stock_info_resource, get_stock_peers_resource, get_price_targets_resource
+        # get_financial_statement_resource not currently used
         from src.resources.market import get_market_snapshot_resource
         
         # Import prompts
@@ -243,8 +253,18 @@ if __name__ == "__main__":
         streamable_mcp.prompt()(technical_analysis)
         streamable_mcp.prompt()(economic_indicator_analysis)
         
-        # Mount the streamable HTTP app at root - FastMCP handles /mcp internally
-        app = streamable_mcp.streamable_http_app()
+        # Health check endpoint
+        async def health_check(request):
+            _ = request  # Suppress unused parameter warning
+            return JSONResponse({"status": "healthy", "service": "fmp-mcp-server"})
+        
+        # Create Starlette app with health check and MCP routes
+        app = Starlette(
+            routes=[
+                Route("/health", health_check, methods=["GET"]),
+                Mount("/", app=streamable_mcp.streamable_http_app()),
+            ]
+        )
         
         # Run the server
         uvicorn.run(app, host=args.host, port=args.port)

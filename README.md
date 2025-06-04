@@ -24,6 +24,7 @@ A Model Context Protocol (MCP) server that provides tools, resources, and prompt
 - **Multiple Transport Options**: Support for stdio, SSE, and Streamable HTTP transports
 - **Stateful & Stateless Modes**: Flexible deployment options for different use cases
 - **Docker Support**: Containerized deployment with configurable transport modes
+- **Health Check Endpoint**: Built-in `/health` endpoint for load balancer health checks
 
 ## Code Organization
 
@@ -367,6 +368,7 @@ python -m src.server --streamable-http --stateless --json-response --port 8000
 
 **Endpoints:**
 - Streamable HTTP endpoint: `http://localhost:8000/mcp`
+- Health check endpoint: `http://localhost:8000/health`
 - All MCP operations (tools, resources, prompts) available via HTTP POST/GET
 
 **Docker Support:**
@@ -461,7 +463,7 @@ There are several ways to run the server with Docker:
 ##### Option 1: Build and run locally
 
 ```bash
-# Build and run with Docker
+# Build and run with Docker (includes health check endpoint)
 docker build -t fmp-mcp-server .
 docker run -p 8000:8000 -e FMP_API_KEY=your_api_key_here fmp-mcp-server
 
@@ -531,6 +533,54 @@ Once the MCP Inspector is running:
    - If you started the server with a custom port (e.g., `PORT=9000`), use that port instead: `http://localhost:9000/sse`
 3. Click "Connect" to establish a connection with your server
 4. Explore available tools, resources, and prompts in their respective tabs
+
+### Testing the Health Check
+
+You can test the health check endpoint once the server is running:
+
+```bash
+# Test the dedicated health endpoint (ALB-compatible GET request)
+curl http://localhost:8000/health
+
+# Expected response:
+# {"status":"healthy","service":"fmp-mcp-server"}
+
+# Test MCP redirect endpoint (ALB-compatible GET request)
+curl http://localhost:8000/mcp/
+
+# Expected response: HTTP 307 redirect (indicates service is running)
+
+# Test full MCP functionality (JSON-RPC POST request)
+curl -L -X POST \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "ping",
+    "params": {}
+  }' \
+  http://localhost:8000/mcp
+
+# Expected response:
+# event: message
+# data: {"jsonrpc":"2.0","id":1,"result":{}}
+
+# Test with ALB (after deployment)
+curl http://your-alb-dns-name.region.elb.amazonaws.com/health
+
+# Test full MCP functionality via ALB
+curl -L -X POST \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "ping",
+    "params": {}
+  }' \
+  http://your-alb-dns-name.region.elb.amazonaws.com/mcp
+```
 
 ### Example Queries
 
@@ -919,9 +969,21 @@ aws logs tail /ecs/mcp-task-stream --region eu-west-2 --follow
 
 ### Health Checks
 
-The load balancer uses intelligent health checking:
-- **Health Check Path**: `/mcp` (returns HTTP 307 redirect)
-- **Expected Response**: HTTP 307 (indicates service is responding correctly)
+The server provides multiple health check options:
+
+#### Option 1: Dedicated Health Endpoint (Recommended)
+- **Health Check Path**: `/health`
+- **Method**: GET (simple HTTP request)
+- **Expected Response**: HTTP 200 with JSON body `{"status": "healthy", "service": "fmp-mcp-server"}`
+- **Advantages**: Simple, fast, lightweight endpoint designed specifically for load balancer health checks
+
+#### Option 2: MCP Redirect Endpoint (Legacy)
+- **Health Check Path**: `/mcp/`
+- **Method**: GET (ALB health checks only support GET)
+- **Expected Response**: HTTP 307 redirect (indicates MCP service is responding)
+- **Usage**: For compatibility with existing setups that expect MCP protocol availability
+
+**Load Balancer Features:**
 - **Automatic Failover**: Unhealthy instances are replaced automatically
 - **Cross-AZ Distribution**: Instances spread across availability zones
 
