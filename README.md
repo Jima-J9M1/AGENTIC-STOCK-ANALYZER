@@ -1004,6 +1004,94 @@ The server provides multiple health check options:
 5. **Monitor CloudWatch logs** for application health
 6. **Use secrets manager** for sensitive configuration
 
+## Terraform Infrastructure
+
+This project includes production-ready Terraform configuration for deploying the FMP MCP server to AWS with enterprise-grade features and cost optimization.
+
+### Infrastructure Features
+
+- **🏗️ Single-Region Architecture**: Simplified deployment with optional multi-region support
+- **🐳 ECS Fargate**: Serverless container platform with auto-scaling
+- **⚖️ Application Load Balancer**: High availability with health checks
+- **🔒 Security Best Practices**: VPC isolation, IAM roles, security groups
+- **🗺️ Service Discovery**: AWS Cloud Map for internal service communication  
+- **📊 Monitoring**: CloudWatch logs and health monitoring
+- **💰 Cost Optimization**: Weekend-only scheduling for 69-83% cost savings
+- **🌐 Multi-Region Support**: Route53 latency-based routing
+- **🔐 Secrets Management**: AWS Secrets Manager for API keys
+
+### Quick Start
+
+```bash
+# Navigate to terraform directory
+cd terraform/fmp-mcp-modular
+
+# Copy and configure variables
+cp terraform.tfvars.example terraform-my-region.tfvars
+# Edit with your values (region, domain, etc.)
+
+# Deploy infrastructure
+terraform init
+terraform plan -var-file="terraform-my-region.tfvars" -out="my-region.tfplan"
+terraform apply my-region.tfplan
+
+# Set API key in AWS Secrets Manager
+SECRET_ARN=$(terraform output -raw secret_arn)
+aws secretsmanager put-secret-value \
+  --secret-id $SECRET_ARN \
+  --secret-string '{"API_KEY":"your-fmp-api-key-here"}'
+
+# Get application URL
+terraform output application_url
+```
+
+### Multi-Region Deployment
+
+For global deployment with automatic failover:
+
+```bash
+# Deploy to multiple regions with separate state files
+terraform apply -var-file="terraform-eu-west-1.tfvars" \
+  -state="terraform-eu-west-1.tfstate" \
+  -state-out="terraform-eu-west-1.tfstate"
+
+terraform apply -var-file="terraform-eu-west-2.tfvars" \
+  -state="terraform-eu-west-2.tfstate" \
+  -state-out="terraform-eu-west-2.tfstate"
+
+# Route53 automatically provides latency-based routing
+```
+
+### Cost Optimization
+
+The infrastructure includes intelligent weekend-only scheduling:
+
+```bash
+# Enable weekend-only mode (69-83% cost savings)
+terraform apply -var-file="terraform-my-region.tfvars" \
+  -var="enable_weekend_only=true" \
+  -var="destroy_albs_when_scaled_down=false"
+
+# Manual scaling operations
+aws ecs update-service \
+  --cluster $(terraform output -raw ecs_cluster_name) \
+  --service $(terraform output -raw ecs_service_name) \
+  --desired-count 0  # Scale down
+```
+
+### Architecture
+
+The Terraform configuration creates:
+- **VPC** with multi-AZ public subnets
+- **ECS Cluster** with Fargate tasks
+- **Application Load Balancer** with health checks
+- **Route53** DNS with latency-based routing (multi-region)
+- **IAM Roles** with least-privilege access
+- **Secrets Manager** for secure API key storage
+- **CloudWatch** logging and monitoring
+
+See the complete documentation at [`terraform/fmp-mcp-modular/README.md`](terraform/fmp-mcp-modular/README.md) for detailed architecture diagrams, configuration options, and management commands.
+
 ### Coverage Reporting
 
 Code coverage is tracked across different testing stages:

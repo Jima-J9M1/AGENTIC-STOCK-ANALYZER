@@ -44,3 +44,6 @@ scripts/
 !scripts/add-load-balancer.sh
 !scripts/add-service-discovery.sh
 !scripts/cleanup-duplicates.sh
+# Terraform state files
+*.tfstate
+*.tfstate.backup
