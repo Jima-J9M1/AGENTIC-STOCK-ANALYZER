@@ -43,8 +43,7 @@ from src.prompts.templates import (
 
 # Create the MCP server
 mcp = FastMCP(
-    "FMP Financial Data",
-    description="Financial data tools and resources powered by Financial Modeling Prep API",
+    name="FMP Financial Data",
     dependencies=["httpx"]
 )
 
