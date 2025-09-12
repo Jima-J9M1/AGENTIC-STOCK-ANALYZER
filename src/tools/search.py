@@ -138,30 +138,27 @@ async def search_by_name(query: str, limit: int = 10, exchange: str = None) -> s
     return "\n".join(result)
 
 
-async def search(query: str, limit: int = 10) -> str:
+async def search(query: str) -> Dict[str, Any]:
     """
     GPT-compatible search action for ChatGPT integration.
     Searches for financial instruments (stocks, ETFs, etc.) by symbol or name.
     
     Args:
         query: Search query (symbol or company name)
-        limit: Maximum number of results to return (default: 10)
         
     Returns:
-        JSON string containing search results with resource IDs
+        Dictionary with 'results' key containing list of matching documents.
+        Each result includes id, title, and url as required by GPT spec.
     """
-    if not query:
-        return json.dumps({"error": "query parameter is required"})
-    
-    if not 1 <= limit <= 100:
-        return json.dumps({"error": "limit must be between 1 and 100"})
+    if not query or not query.strip():
+        return {"results": []}
     
     try:
         # Try symbol search first
-        symbol_data = await fmp_api_request("search-symbol", {"query": query, "limit": limit})
+        symbol_data = await fmp_api_request("search-symbol", {"query": query, "limit": 10})
         
         # Try name search as well
-        name_data = await fmp_api_request("search-name", {"query": query, "limit": limit})
+        name_data = await fmp_api_request("search-name", {"query": query, "limit": 10})
         
         # Combine and deduplicate results
         all_results = []
@@ -176,12 +173,7 @@ async def search(query: str, limit: int = 10) -> str:
                     all_results.append({
                         "id": f"stock-{symbol}",
                         "title": f"{symbol} - {item.get('name', 'Unknown')}",
-                        "description": f"Stock on {item.get('exchangeFullName', item.get('exchange', 'Unknown'))} exchange",
-                        "symbol": symbol,
-                        "name": item.get('name', 'Unknown'),
-                        "exchange": item.get('exchange', 'Unknown'),
-                        "currency": item.get('currency', 'Unknown'),
-                        "type": "stock"
+                        "url": f"https://financialmodelingprep.com/company/{symbol}"
                     })
         
         # Process name search results
@@ -193,142 +185,113 @@ async def search(query: str, limit: int = 10) -> str:
                     all_results.append({
                         "id": f"stock-{symbol}",
                         "title": f"{item.get('name', 'Unknown')} ({symbol})",
-                        "description": f"Stock on {item.get('exchangeShortName', item.get('exchange', 'Unknown'))} exchange",
-                        "symbol": symbol,
-                        "name": item.get('name', 'Unknown'),
-                        "exchange": item.get('exchangeShortName', item.get('exchange', 'Unknown')),
-                        "currency": item.get('currency', 'Unknown'),
-                        "type": item.get('stockType', item.get('type', 'stock'))
+                        "url": f"https://financialmodelingprep.com/company/{symbol}"
                     })
         
-        # Limit results
-        all_results = all_results[:limit]
+        # Limit results to 10
+        all_results = all_results[:10]
         
-        return json.dumps({
-            "results": all_results,
-            "query": query,
-            "total": len(all_results)
-        })
+        return {"results": all_results}
         
     except Exception as e:
-        return json.dumps({"error": f"Search failed: {str(e)}"})
+        # Return empty results on error to match GPT spec
+        return {"results": []}
 
 
-async def fetch(resource_id: str) -> str:
+async def fetch(id: str) -> Dict[str, Any]:
     """
     GPT-compatible fetch action for ChatGPT integration.
     Fetches detailed information for a specific resource.
     
     Args:
-        resource_id: Resource ID in format "stock-{symbol}" or "market-{type}"
+        id: Resource ID in format "stock-{symbol}"
         
     Returns:
-        JSON string containing detailed resource information
+        Dictionary with id, title, text, url, and metadata as required by GPT spec.
     """
-    if not resource_id:
-        return json.dumps({"error": "resource_id parameter is required"})
+    if not id or not id.strip():
+        raise ValueError("Document ID is required")
     
     try:
         # Parse resource ID
-        if resource_id.startswith("stock-"):
-            symbol = resource_id[6:]  # Remove "stock-" prefix
+        if id.startswith("stock-"):
+            symbol = id[6:]  # Remove "stock-" prefix
             
             # Get comprehensive stock information
             profile_data = await fmp_api_request("profile", {"symbol": symbol})
             quote_data = await fmp_api_request("quote", {"symbol": symbol})
             
-            result = {
-                "id": resource_id,
-                "symbol": symbol,
-                "type": "stock"
-            }
+            # Build title and text content
+            title = f"Stock Information for {symbol}"
+            text_parts = []
             
             # Add profile information
             if isinstance(profile_data, list) and len(profile_data) > 0:
                 profile = profile_data[0]
-                result.update({
-                    "name": profile.get('companyName', 'Unknown'),
-                    "description": profile.get('description', ''),
-                    "sector": profile.get('sector', 'Unknown'),
-                    "industry": profile.get('industry', 'Unknown'),
-                    "ceo": profile.get('ceo', 'Unknown'),
-                    "website": profile.get('website', ''),
-                    "employees": profile.get('fullTimeEmployees', 0),
-                    "market_cap": profile.get('mktCap', 0),
-                    "exchange": profile.get('exchangeShortName', 'Unknown'),
-                    "currency": profile.get('currency', 'USD'),
-                    "country": profile.get('country', 'Unknown'),
-                    "city": profile.get('city', 'Unknown'),
-                    "state": profile.get('state', 'Unknown'),
-                    "zip": profile.get('zip', ''),
-                    "phone": profile.get('phone', ''),
-                    "address": profile.get('address', ''),
-                    "image": profile.get('image', ''),
-                    "beta": profile.get('beta', 0),
-                    "vol_avg": profile.get('volAvg', 0),
-                    "last_div": profile.get('lastDiv', 0),
-                    "range": profile.get('range', ''),
-                    "changes": profile.get('changes', 0),
-                    "dcf_diff": profile.get('dcfDiff', 0),
-                    "dcf": profile.get('dcf', 0),
-                    "ipo_date": profile.get('ipoDate', ''),
-                    "default_image": profile.get('defaultImage', False),
-                    "is_etf": profile.get('isEtf', False),
-                    "is_actively_trading": profile.get('isActivelyTrading', True)
-                })
+                company_name = profile.get('companyName', 'Unknown')
+                title = f"{company_name} ({symbol})"
+                
+                text_parts.append(f"Company: {company_name}")
+                text_parts.append(f"Symbol: {symbol}")
+                text_parts.append(f"Sector: {profile.get('sector', 'Unknown')}")
+                text_parts.append(f"Industry: {profile.get('industry', 'Unknown')}")
+                text_parts.append(f"CEO: {profile.get('ceo', 'Unknown')}")
+                text_parts.append(f"Website: {profile.get('website', 'N/A')}")
+                text_parts.append(f"Employees: {profile.get('fullTimeEmployees', 'N/A')}")
+                text_parts.append(f"Market Cap: ${profile.get('mktCap', 0):,}")
+                text_parts.append(f"Exchange: {profile.get('exchangeShortName', 'Unknown')}")
+                text_parts.append(f"Country: {profile.get('country', 'Unknown')}")
+                
+                if profile.get('description'):
+                    text_parts.append(f"Description: {profile.get('description')}")
             
             # Add quote information
             if isinstance(quote_data, list) and len(quote_data) > 0:
                 quote = quote_data[0]
-                result.update({
-                    "price": quote.get('price', 0),
-                    "change": quote.get('change', 0),
-                    "change_percent": quote.get('changesPercentage', 0),
-                    "day_low": quote.get('dayLow', 0),
-                    "day_high": quote.get('dayHigh', 0),
-                    "year_low": quote.get('yearLow', 0),
-                    "year_high": quote.get('yearHigh', 0),
-                    "market_cap": quote.get('marketCap', 0),
-                    "price_avg50": quote.get('priceAvg50', 0),
-                    "price_avg200": quote.get('priceAvg200', 0),
-                    "volume": quote.get('volume', 0),
-                    "avg_volume": quote.get('avgVolume', 0),
-                    "exchange": quote.get('exchange', 'Unknown'),
-                    "open": quote.get('open', 0),
-                    "previous_close": quote.get('previousClose', 0),
-                    "eps": quote.get('eps', 0),
-                    "pe": quote.get('pe', 0),
-                    "earnings_announcement": quote.get('earningsAnnouncement', ''),
-                    "shares_outstanding": quote.get('sharesOutstanding', 0),
-                    "timestamp": quote.get('timestamp', 0)
+                text_parts.append(f"\\nCurrent Price: ${quote.get('price', 0)}")
+                text_parts.append(f"Change: ${quote.get('change', 0)} ({quote.get('changesPercentage', 0)}%)")
+                text_parts.append(f"Day Range: ${quote.get('dayLow', 0)} - ${quote.get('dayHigh', 0)}")
+                text_parts.append(f"52-Week Range: ${quote.get('yearLow', 0)} - ${quote.get('yearHigh', 0)}")
+                text_parts.append(f"Volume: {quote.get('volume', 0):,}")
+                text_parts.append(f"Average Volume: {quote.get('avgVolume', 0):,}")
+                text_parts.append(f"P/E Ratio: {quote.get('pe', 'N/A')}")
+                text_parts.append(f"EPS: ${quote.get('eps', 0)}")
+            
+            # Combine all text
+            full_text = "\\n".join(text_parts) if text_parts else "No information available"
+            
+            # Build metadata
+            metadata = {}
+            if isinstance(profile_data, list) and len(profile_data) > 0:
+                profile = profile_data[0]
+                metadata.update({
+                    "sector": profile.get('sector'),
+                    "industry": profile.get('industry'),
+                    "exchange": profile.get('exchangeShortName'),
+                    "currency": profile.get('currency', 'USD'),
+                    "country": profile.get('country'),
+                    "is_etf": profile.get('isEtf', False)
                 })
             
-            return json.dumps(result)
-            
-        elif resource_id.startswith("market-"):
-            market_type = resource_id[7:]  # Remove "market-" prefix
-            
-            if market_type == "gainers":
-                data = await fmp_api_request("gainers", {})
-            elif market_type == "losers":
-                data = await fmp_api_request("losers", {})
-            elif market_type == "active":
-                data = await fmp_api_request("actives", {})
-            else:
-                return json.dumps({"error": f"Unknown market type: {market_type}"})
-            
-            if isinstance(data, list):
-                return json.dumps({
-                    "id": resource_id,
-                    "type": "market",
-                    "market_type": market_type,
-                    "data": data
+            if isinstance(quote_data, list) and len(quote_data) > 0:
+                quote = quote_data[0]
+                metadata.update({
+                    "price": quote.get('price'),
+                    "market_cap": quote.get('marketCap'),
+                    "pe_ratio": quote.get('pe'),
+                    "volume": quote.get('volume')
                 })
-            else:
-                return json.dumps({"error": "Failed to fetch market data"})
+            
+            return {
+                "id": id,
+                "title": title,
+                "text": full_text,
+                "url": f"https://financialmodelingprep.com/company/{symbol}",
+                "metadata": metadata if metadata else None
+            }
         
         else:
-            return json.dumps({"error": f"Unknown resource type: {resource_id}"})
+            raise ValueError(f"Unknown resource type: {id}")
             
     except Exception as e:
-        return json.dumps({"error": f"Fetch failed: {str(e)}"})
+        raise ValueError(f"Fetch failed: {str(e)}")
