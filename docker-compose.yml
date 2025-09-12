@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8000:8000" # Host:Container
+      - "8000:8000" # Host:Container   
     expose:   # expose only inside the Docker network
       - "8000"
     environment:
