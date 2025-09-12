@@ -16,7 +16,7 @@ from mcp.server.fastmcp import FastMCP, Context
 # Import tools
 from src.tools.company import get_company_profile, get_company_notes
 from src.tools.statements import get_income_statement
-from src.tools.search import search_by_symbol, search_by_name
+from src.tools.search import search_by_symbol, search_by_name, search, fetch
 from src.tools.quote import get_quote, get_quote_change, get_aftermarket_quote
 from src.tools.charts import get_price_change
 from src.tools.analyst import get_ratings_snapshot, get_financial_estimates, get_price_target_news, get_price_target_latest_news
@@ -57,6 +57,8 @@ mcp.tool()(get_price_change)
 mcp.tool()(get_income_statement)
 mcp.tool()(search_by_symbol)
 mcp.tool()(search_by_name)
+mcp.tool()(search)
+mcp.tool()(fetch)
 mcp.tool()(get_ratings_snapshot)
 mcp.tool()(get_financial_estimates)
 mcp.tool()(get_price_target_news)
@@ -169,7 +171,6 @@ if __name__ == "__main__":
         # Create new FastMCP instance with desired configuration
         streamable_mcp = FastMCP(
             "FMP Financial Data",
-            description="Financial data tools and resources powered by Financial Modeling Prep API",
             dependencies=["httpx"],
             stateless_http=args.stateless,
             json_response=args.json_response
@@ -179,7 +180,7 @@ if __name__ == "__main__":
         # Import tools
         from src.tools.company import get_company_profile, get_company_notes
         from src.tools.statements import get_income_statement
-        from src.tools.search import search_by_symbol, search_by_name
+        from src.tools.search import search_by_symbol, search_by_name, search, fetch
         from src.tools.quote import get_quote, get_quote_change, get_aftermarket_quote
         from src.tools.charts import get_price_change
         from src.tools.analyst import get_ratings_snapshot, get_financial_estimates, get_price_target_news, get_price_target_latest_news
@@ -216,6 +217,8 @@ if __name__ == "__main__":
         streamable_mcp.tool()(get_income_statement)
         streamable_mcp.tool()(search_by_symbol)
         streamable_mcp.tool()(search_by_name)
+        streamable_mcp.tool()(search)
+        streamable_mcp.tool()(fetch)
         streamable_mcp.tool()(get_ratings_snapshot)
         streamable_mcp.tool()(get_financial_estimates)
         streamable_mcp.tool()(get_price_target_news)

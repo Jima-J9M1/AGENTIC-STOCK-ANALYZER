@@ -47,3 +47,6 @@ scripts/
 # Terraform state files
 *.tfstate
 *.tfstate.backup
+
+# virtual environment
+.venv/
