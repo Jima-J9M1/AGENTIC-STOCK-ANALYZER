@@ -160,15 +160,6 @@ async def search(query: str) -> Dict[str, Any]:
         # Try name search as well
         name_data = await fmp_api_request("search-name", {"query": query, "limit": 10})
         
-        # Try ETF search for broader coverage
-        etf_data = await fmp_api_request("etf-list", {"limit": 10})
-        
-        # Try crypto search
-        crypto_data = await fmp_api_request("crypto", {"limit": 10})
-        
-        # Try forex search
-        forex_data = await fmp_api_request("forex", {"limit": 10})
-        
         # Combine and deduplicate results
         all_results = []
         seen_symbols = set()
@@ -197,42 +188,6 @@ async def search(query: str) -> Dict[str, Any]:
                         "url": f"https://financialmodelingprep.com/company/{symbol}"
                     })
         
-        # Process ETF search results
-        if isinstance(etf_data, list):
-            for item in etf_data:
-                symbol = item.get('symbol', '')
-                if symbol and symbol not in seen_symbols and query.lower() in symbol.lower():
-                    seen_symbols.add(symbol)
-                    all_results.append({
-                        "id": f"etf-{symbol}",
-                        "title": f"{item.get('name', 'Unknown')} ({symbol}) - ETF",
-                        "url": f"https://financialmodelingprep.com/company/{symbol}"
-                    })
-        
-        # Process crypto search results
-        if isinstance(crypto_data, list):
-            for item in crypto_data:
-                symbol = item.get('symbol', '')
-                if symbol and symbol not in seen_symbols and query.lower() in symbol.lower():
-                    seen_symbols.add(symbol)
-                    all_results.append({
-                        "id": f"crypto-{symbol}",
-                        "title": f"{item.get('name', 'Unknown')} ({symbol}) - Crypto",
-                        "url": f"https://financialmodelingprep.com/company/{symbol}"
-                    })
-        
-        # Process forex search results
-        if isinstance(forex_data, list):
-            for item in forex_data:
-                symbol = item.get('symbol', '')
-                if symbol and symbol not in seen_symbols and query.lower() in symbol.lower():
-                    seen_symbols.add(symbol)
-                    all_results.append({
-                        "id": f"forex-{symbol}",
-                        "title": f"{item.get('name', 'Unknown')} ({symbol}) - Forex",
-                        "url": f"https://financialmodelingprep.com/company/{symbol}"
-                    })
-        
         # Limit results to 10
         all_results = all_results[:10]
         
@@ -258,63 +213,33 @@ async def fetch(id: str) -> Dict[str, Any]:
         raise ValueError("Document ID is required")
     
     try:
-        # Parse resource ID and determine asset type
-        asset_type = "stock"
-        symbol = id
-        
+        # Parse resource ID
         if id.startswith("stock-"):
             symbol = id[6:]  # Remove "stock-" prefix
-            asset_type = "stock"
-        elif id.startswith("etf-"):
-            symbol = id[4:]  # Remove "etf-" prefix
-            asset_type = "etf"
-        elif id.startswith("crypto-"):
-            symbol = id[7:]  # Remove "crypto-" prefix
-            asset_type = "crypto"
-        elif id.startswith("forex-"):
-            symbol = id[6:]  # Remove "forex-" prefix
-            asset_type = "forex"
-        
-        # Get comprehensive information based on asset type
-        if asset_type == "stock":
+            
+            # Get comprehensive stock information
             profile_data = await fmp_api_request("profile", {"symbol": symbol})
             quote_data = await fmp_api_request("quote", {"symbol": symbol})
-        elif asset_type == "etf":
-            profile_data = await fmp_api_request("etf-profile", {"symbol": symbol})
-            quote_data = await fmp_api_request("etf-quote", {"symbol": symbol})
-        elif asset_type == "crypto":
-            profile_data = await fmp_api_request("crypto-profile", {"symbol": symbol})
-            quote_data = await fmp_api_request("crypto-quote", {"symbol": symbol})
-        elif asset_type == "forex":
-            profile_data = await fmp_api_request("forex-profile", {"symbol": symbol})
-            quote_data = await fmp_api_request("forex-quote", {"symbol": symbol})
-        
-        # Get additional financial data for trading analysis
-        try:
-            # Get real-time intraday data (last 5 days for short-term analysis)
-            from datetime import datetime, timedelta
-            end_date = datetime.now().strftime("%Y-%m-%d")
-            start_date = (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d")
-                
+            
+            # Get additional financial data for trading analysis
+            try:
                 # Get recent price history for technical analysis
+                from datetime import datetime, timedelta
+                end_date = datetime.now().strftime("%Y-%m-%d")
+                start_date = (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d")
+                
                 historical_data = await fmp_api_request("historical-price-full", {"symbol": symbol, "from": start_date, "to": end_date})
                 
-                # Get real-time intraday data (1-minute intervals for last 2 days)
-                intraday_data = await fmp_api_request("historical-chart/1min", {"symbol": symbol, "from": start_date, "to": end_date})
-                
-                # Get aftermarket trading data
-                aftermarket_data = await fmp_api_request("after-market-quote", {"symbol": symbol})
-                
-                # Get real-time technical indicators
+                # Get technical indicators
                 rsi_data = await fmp_api_request("rsi", {"symbol": symbol, "period": 14})
                 macd_data = await fmp_api_request("macd", {"symbol": symbol})
                 bollinger_data = await fmp_api_request("bbands", {"symbol": symbol, "period": 20})
                 stochastic_data = await fmp_api_request("stoch", {"symbol": symbol})
                 
-                # Get real-time analyst ratings and price targets
+                # Get analyst ratings and price targets
                 ratings_data = await fmp_api_request("rating", {"symbol": symbol})
                 
-                # Get real-time news for sentiment analysis
+                # Get recent news for sentiment analysis
                 news_data = await fmp_api_request("stock_news", {"tickers": symbol, "limit": 5})
                 
                 # Get financial statements for fundamental analysis
@@ -334,39 +259,9 @@ async def fetch(id: str) -> Dict[str, Any]:
                 # Get short interest data
                 short_interest = await fmp_api_request("short-interest", {"symbol": symbol, "limit": 1})
                 
-                # Get real-time market sentiment indicators
-                market_sentiment = await fmp_api_request("market-sentiment", {"symbol": symbol})
-                
-                # Get real-time earnings calendar
-                earnings_calendar = await fmp_api_request("earning_calendar", {"symbol": symbol, "from": start_date, "to": end_date})
-                
-                # Get additional analyst data
-                ratings_snapshot = await fmp_api_request("ratings-snapshot", {"symbol": symbol})
-                financial_estimates = await fmp_api_request("financial-estimates", {"symbol": symbol, "period": "annual", "limit": 1})
-                price_target_news = await fmp_api_request("price-target-latest-news", {"symbol": symbol, "limit": 3})
-                
-                # Get additional technical indicators
-                ema_data = await fmp_api_request("ema", {"symbol": symbol, "periodLength": 20, "timeframe": "1day"})
-                
-                # Get company-specific data
-                company_notes = await fmp_api_request("company-notes", {"symbol": symbol})
-                
-                # Get dividend information
-                dividends = await fmp_api_request("dividends", {"symbol": symbol, "limit": 5})
-                
-                # Get market context data
-                biggest_gainers = await fmp_api_request("biggest-gainers", {"limit": 5})
-                biggest_losers = await fmp_api_request("biggest-losers", {"limit": 5})
-                most_active = await fmp_api_request("most-active", {"limit": 5})
-                
-                # Get market hours status
-                market_hours = await fmp_api_request("market-hours", {"exchange": "NASDAQ"})
-                
             except Exception as e:
                 # If additional data fails, continue with basic data
                 historical_data = None
-                intraday_data = None
-                aftermarket_data = None
                 rsi_data = None
                 macd_data = None
                 bollinger_data = None
@@ -380,18 +275,6 @@ async def fetch(id: str) -> Dict[str, Any]:
                 insider_trading = None
                 institutional_holders = None
                 short_interest = None
-                market_sentiment = None
-                earnings_calendar = None
-                ratings_snapshot = None
-                financial_estimates = None
-                price_target_news = None
-                ema_data = None
-                company_notes = None
-                dividends = None
-                biggest_gainers = None
-                biggest_losers = None
-                most_active = None
-                market_hours = None
             
             # Build title and text content
             title = f"Stock Information for {symbol}"
@@ -432,33 +315,6 @@ async def fetch(id: str) -> Dict[str, Any]:
                 text_parts.append(f"Market Cap: ${quote.get('marketCap', 0):,}")
                 text_parts.append(f"Beta: {quote.get('beta', 'N/A')}")
                 text_parts.append(f"Last Update: {quote.get('timestamp', 'N/A')}")
-            
-            # Add aftermarket data
-            if aftermarket_data and isinstance(aftermarket_data, list) and len(aftermarket_data) > 0:
-                text_parts.append(f"\\n=== AFTERMARKET TRADING ===")
-                aftermarket = aftermarket_data[0]
-                text_parts.append(f"Aftermarket Price: ${aftermarket.get('price', 'N/A')}")
-                text_parts.append(f"Aftermarket Change: ${aftermarket.get('change', 'N/A')} ({aftermarket.get('changesPercentage', 'N/A')}%)")
-                text_parts.append(f"Aftermarket Volume: {aftermarket.get('volume', 'N/A')}")
-                text_parts.append(f"Aftermarket Timestamp: {aftermarket.get('timestamp', 'N/A')}")
-            
-            # Add intraday data analysis
-            if intraday_data and isinstance(intraday_data, list) and len(intraday_data) > 0:
-                text_parts.append(f"\\n=== INTRADAY PRICE ACTION ===")
-                # Get last few intraday data points
-                recent_intraday = intraday_data[:5]
-                text_parts.append("Recent Intraday Prices (1-min intervals):")
-                for i, minute_data in enumerate(recent_intraday):
-                    text_parts.append(f"  {minute_data.get('date', 'N/A')}: ${minute_data.get('close', 'N/A')} (Vol: {minute_data.get('volume', 'N/A')})")
-                
-                # Calculate intraday volatility
-                if len(intraday_data) >= 2:
-                    prices = [float(day['close']) for day in intraday_data[:10] if day.get('close')]
-                    if len(prices) >= 2:
-                        high = max(prices)
-                        low = min(prices)
-                        volatility = ((high - low) / low) * 100
-                        text_parts.append(f"Intraday Volatility: {volatility:.2f}%")
             
             # Add technical indicators
             if rsi_data and isinstance(rsi_data, list) and len(rsi_data) > 0:
@@ -590,104 +446,6 @@ async def fetch(id: str) -> Dict[str, Any]:
                 text_parts.append(f"Short Interest %: {short_data.get('shortInterestPercent', 'N/A')}")
                 text_parts.append(f"Days to Cover: {short_data.get('daysToCover', 'N/A')}")
                 text_parts.append(f"Short Interest Date: {short_data.get('date', 'N/A')}")
-            
-            # Add market sentiment data
-            if market_sentiment and isinstance(market_sentiment, list) and len(market_sentiment) > 0:
-                text_parts.append(f"\\n=== MARKET SENTIMENT ===")
-                sentiment = market_sentiment[0]
-                text_parts.append(f"Sentiment Score: {sentiment.get('sentiment', 'N/A')}")
-                text_parts.append(f"Sentiment Label: {sentiment.get('sentimentLabel', 'N/A')}")
-                text_parts.append(f"Sentiment Date: {sentiment.get('date', 'N/A')}")
-            
-            # Add earnings calendar
-            if earnings_calendar and isinstance(earnings_calendar, list) and len(earnings_calendar) > 0:
-                text_parts.append(f"\\n=== UPCOMING EARNINGS ===")
-                for i, earnings in enumerate(earnings_calendar[:3]):
-                    text_parts.append(f"Earnings {i+1}:")
-                    text_parts.append(f"  Date: {earnings.get('date', 'N/A')}")
-                    text_parts.append(f"  EPS Estimate: ${earnings.get('epsEstimate', 'N/A')}")
-                    text_parts.append(f"  Revenue Estimate: ${earnings.get('revenueEstimate', 'N/A')}")
-                    text_parts.append("")
-            
-            # Add comprehensive analyst data
-            if ratings_snapshot and isinstance(ratings_snapshot, list) and len(ratings_snapshot) > 0:
-                text_parts.append(f"\\n=== COMPREHENSIVE ANALYST RATINGS ===")
-                snapshot = ratings_snapshot[0]
-                text_parts.append(f"Overall Score: {snapshot.get('overallScore', 'N/A')}/5")
-                text_parts.append(f"Rating: {snapshot.get('rating', 'N/A')}")
-                text_parts.append(f"Analyst Count: {snapshot.get('analystCount', 'N/A')}")
-                text_parts.append(f"Target Price: ${snapshot.get('targetPrice', 'N/A')}")
-                text_parts.append(f"Rating Date: {snapshot.get('date', 'N/A')}")
-            
-            if financial_estimates and isinstance(financial_estimates, list) and len(financial_estimates) > 0:
-                text_parts.append(f"\\n=== FINANCIAL ESTIMATES ===")
-                estimates = financial_estimates[0]
-                text_parts.append(f"Revenue Estimate: ${estimates.get('revenueEstimate', 'N/A')}")
-                text_parts.append(f"EPS Estimate: ${estimates.get('epsEstimate', 'N/A')}")
-                text_parts.append(f"Estimate Date: {estimates.get('date', 'N/A')}")
-            
-            if price_target_news and isinstance(price_target_news, list) and len(price_target_news) > 0:
-                text_parts.append(f"\\n=== PRICE TARGET UPDATES ===")
-                for i, target in enumerate(price_target_news[:3]):
-                    text_parts.append(f"Target Update {i+1}:")
-                    text_parts.append(f"  Target Price: ${target.get('targetPrice', 'N/A')}")
-                    text_parts.append(f"  Analyst: {target.get('analyst', 'N/A')}")
-                    text_parts.append(f"  Date: {target.get('date', 'N/A')}")
-                    text_parts.append("")
-            
-            # Add EMA technical indicator
-            if ema_data and isinstance(ema_data, list) and len(ema_data) > 0:
-                text_parts.append(f"\\n=== EXPONENTIAL MOVING AVERAGE ===")
-                latest_ema = ema_data[0]
-                text_parts.append(f"EMA (20): {latest_ema.get('ema', 'N/A')}")
-                text_parts.append(f"Price vs EMA: {latest_ema.get('price', 'N/A')}")
-                text_parts.append(f"EMA Date: {latest_ema.get('date', 'N/A')}")
-            
-            # Add company notes
-            if company_notes and isinstance(company_notes, list) and len(company_notes) > 0:
-                text_parts.append(f"\\n=== COMPANY NOTES ===")
-                for i, note in enumerate(company_notes[:3]):
-                    text_parts.append(f"Note {i+1}: {note.get('title', 'N/A')}")
-                    text_parts.append(f"Date: {note.get('date', 'N/A')}")
-                    if note.get('content'):
-                        content = note['content'][:200] + "..." if len(note['content']) > 200 else note['content']
-                        text_parts.append(f"Content: {content}")
-                    text_parts.append("")
-            
-            # Add dividend information
-            if dividends and isinstance(dividends, list) and len(dividends) > 0:
-                text_parts.append(f"\\n=== DIVIDEND INFORMATION ===")
-                for i, dividend in enumerate(dividends[:3]):
-                    text_parts.append(f"Dividend {i+1}:")
-                    text_parts.append(f"  Amount: ${dividend.get('dividend', 'N/A')}")
-                    text_parts.append(f"  Ex-Date: {dividend.get('exDate', 'N/A')}")
-                    text_parts.append(f"  Record Date: {dividend.get('recordDate', 'N/A')}")
-                    text_parts.append(f"  Payment Date: {dividend.get('paymentDate', 'N/A')}")
-                    text_parts.append("")
-            
-            # Add market context
-            if biggest_gainers and isinstance(biggest_gainers, list) and len(biggest_gainers) > 0:
-                text_parts.append(f"\\n=== MARKET CONTEXT ===")
-                text_parts.append("Top Market Gainers:")
-                for i, gainer in enumerate(biggest_gainers[:3]):
-                    text_parts.append(f"  {i+1}. {gainer.get('symbol', 'N/A')}: {gainer.get('changesPercentage', 'N/A')}%")
-                
-            if biggest_losers and isinstance(biggest_losers, list) and len(biggest_losers) > 0:
-                text_parts.append("Top Market Losers:")
-                for i, loser in enumerate(biggest_losers[:3]):
-                    text_parts.append(f"  {i+1}. {loser.get('symbol', 'N/A')}: {loser.get('changesPercentage', 'N/A')}%")
-                
-            if most_active and isinstance(most_active, list) and len(most_active) > 0:
-                text_parts.append("Most Active Stocks:")
-                for i, active in enumerate(most_active[:3]):
-                    text_parts.append(f"  {i+1}. {active.get('symbol', 'N/A')}: Vol {active.get('volume', 'N/A')}")
-            
-            # Add market hours status
-            if market_hours and isinstance(market_hours, dict):
-                text_parts.append(f"\\n=== MARKET STATUS ===")
-                text_parts.append(f"Market Status: {market_hours.get('status', 'N/A')}")
-                text_parts.append(f"Market Hours: {market_hours.get('hours', 'N/A')}")
-                text_parts.append(f"Current Time: {market_hours.get('currentTime', 'N/A')}")
             
             # Combine all text
             full_text = "\\n".join(text_parts) if text_parts else "No information available"
@@ -828,117 +586,6 @@ async def fetch(id: str) -> Dict[str, Any]:
                     "short_interest": short_data.get('shortInterest'),
                     "short_interest_percent": short_data.get('shortInterestPercent'),
                     "days_to_cover": short_data.get('daysToCover')
-                })
-            
-            # Add aftermarket data to metadata
-            if aftermarket_data and isinstance(aftermarket_data, list) and len(aftermarket_data) > 0:
-                aftermarket = aftermarket_data[0]
-                metadata.update({
-                    "aftermarket_price": aftermarket.get('price'),
-                    "aftermarket_change": aftermarket.get('change'),
-                    "aftermarket_change_percent": aftermarket.get('changesPercentage'),
-                    "aftermarket_volume": aftermarket.get('volume'),
-                    "aftermarket_timestamp": aftermarket.get('timestamp')
-                })
-            
-            # Add intraday data to metadata
-            if intraday_data and isinstance(intraday_data, list) and len(intraday_data) > 0:
-                # Calculate intraday volatility
-                prices = [float(day['close']) for day in intraday_data[:10] if day.get('close')]
-                if len(prices) >= 2:
-                    high = max(prices)
-                    low = min(prices)
-                    volatility = ((high - low) / low) * 100
-                    metadata.update({
-                        "intraday_volatility": volatility,
-                        "intraday_high": high,
-                        "intraday_low": low,
-                        "intraday_data_points": len(intraday_data)
-                    })
-            
-            # Add market sentiment to metadata
-            if market_sentiment and isinstance(market_sentiment, list) and len(market_sentiment) > 0:
-                sentiment = market_sentiment[0]
-                metadata.update({
-                    "market_sentiment_score": sentiment.get('sentiment'),
-                    "market_sentiment_label": sentiment.get('sentimentLabel'),
-                    "sentiment_date": sentiment.get('date')
-                })
-            
-            # Add earnings calendar to metadata
-            if earnings_calendar and isinstance(earnings_calendar, list) and len(earnings_calendar) > 0:
-                next_earnings = earnings_calendar[0] if earnings_calendar else None
-                if next_earnings:
-                    metadata.update({
-                        "next_earnings_date": next_earnings.get('date'),
-                        "next_earnings_eps_estimate": next_earnings.get('epsEstimate'),
-                        "next_earnings_revenue_estimate": next_earnings.get('revenueEstimate')
-                    })
-            
-            # Add comprehensive analyst data to metadata
-            if ratings_snapshot and isinstance(ratings_snapshot, list) and len(ratings_snapshot) > 0:
-                snapshot = ratings_snapshot[0]
-                metadata.update({
-                    "analyst_overall_score": snapshot.get('overallScore'),
-                    "analyst_rating": snapshot.get('rating'),
-                    "analyst_count": snapshot.get('analystCount'),
-                    "analyst_target_price": snapshot.get('targetPrice'),
-                    "analyst_rating_date": snapshot.get('date')
-                })
-            
-            if financial_estimates and isinstance(financial_estimates, list) and len(financial_estimates) > 0:
-                estimates = financial_estimates[0]
-                metadata.update({
-                    "revenue_estimate": estimates.get('revenueEstimate'),
-                    "eps_estimate": estimates.get('epsEstimate'),
-                    "estimate_date": estimates.get('date')
-                })
-            
-            # Add EMA to metadata
-            if ema_data and isinstance(ema_data, list) and len(ema_data) > 0:
-                latest_ema = ema_data[0]
-                metadata.update({
-                    "ema_20": latest_ema.get('ema'),
-                    "ema_date": latest_ema.get('date')
-                })
-            
-            # Add dividend data to metadata
-            if dividends and isinstance(dividends, list) and len(dividends) > 0:
-                latest_dividend = dividends[0]
-                metadata.update({
-                    "latest_dividend": latest_dividend.get('dividend'),
-                    "dividend_ex_date": latest_dividend.get('exDate'),
-                    "dividend_payment_date": latest_dividend.get('paymentDate')
-                })
-            
-            # Add market context to metadata
-            if biggest_gainers and isinstance(biggest_gainers, list) and len(biggest_gainers) > 0:
-                top_gainer = biggest_gainers[0]
-                metadata.update({
-                    "top_gainer_symbol": top_gainer.get('symbol'),
-                    "top_gainer_percentage": top_gainer.get('changesPercentage')
-                })
-            
-            if biggest_losers and isinstance(biggest_losers, list) and len(biggest_losers) > 0:
-                top_loser = biggest_losers[0]
-                metadata.update({
-                    "top_loser_symbol": top_loser.get('symbol'),
-                    "top_loser_percentage": top_loser.get('changesPercentage')
-                })
-            
-            if most_active and isinstance(most_active, list) and len(most_active) > 0:
-                most_active_stock = most_active[0]
-                metadata.update({
-                    "most_active_symbol": most_active_stock.get('symbol'),
-                    "most_active_volume": most_active_stock.get('volume')
-                })
-            
-            # Add market hours to metadata
-            if market_hours and isinstance(market_hours, dict):
-                metadata.update({
-                    "market_status": market_hours.get('status'),
-                    "market_hours": market_hours.get('hours'),
-                    "market_current_time": market_hours.get('currentTime')
                 })
             
             return {
