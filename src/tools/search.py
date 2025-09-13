@@ -280,6 +280,12 @@ async def fetch(id: str) -> Dict[str, Any]:
             title = f"Stock Information for {symbol}"
             text_parts = []
             
+            # Add mandatory analysis instruction
+            text_parts.append("=== IMPORTANT: USE THE EXACT NUMBERS BELOW IN YOUR ANALYSIS ===")
+            text_parts.append("When providing trading recommendations, you MUST reference the specific values provided.")
+            text_parts.append("Do not give generic responses. Use the actual RSI, MACD, price, and volume data shown.")
+            text_parts.append("")
+            
             # Add profile information
             if isinstance(profile_data, list) and len(profile_data) > 0:
                 profile = profile_data[0]
@@ -300,52 +306,119 @@ async def fetch(id: str) -> Dict[str, Any]:
                 if profile.get('description'):
                     text_parts.append(f"Description: {profile.get('description')}")
             
-            # Add quote information
+            # Add quote information with trading analysis format
             if isinstance(quote_data, list) and len(quote_data) > 0:
                 quote = quote_data[0]
-                text_parts.append(f"\\n=== REAL-TIME MARKET DATA ===")
-                text_parts.append(f"Current Price: ${quote.get('price', 0)}")
-                text_parts.append(f"Change: ${quote.get('change', 0)} ({quote.get('changesPercentage', 0)}%)")
-                text_parts.append(f"Day Range: ${quote.get('dayLow', 0)} - ${quote.get('dayHigh', 0)}")
+                current_price = quote.get('price', 0)
+                change_percent = quote.get('changesPercentage', 0)
+                volume = quote.get('volume', 0)
+                avg_volume = quote.get('avgVolume', 0)
+                
+                text_parts.append(f"\n=== TRADING ANALYSIS REQUIRED - USE THESE EXACT NUMBERS ===")
+                text_parts.append(f"CURRENT PRICE: ${current_price}")
+                text_parts.append(f"DAILY CHANGE: {change_percent}%")
+                text_parts.append(f"VOLUME: {volume:,} shares")
+                text_parts.append(f"AVERAGE VOLUME: {avg_volume:,} shares")
+                
+                # Calculate volume ratio for analysis
+                volume_ratio = (volume / avg_volume) if avg_volume > 0 else 1
+                text_parts.append(f"VOLUME RATIO: {volume_ratio:.2f}x average")
+                
+                if volume_ratio > 2.0:
+                    text_parts.append("VOLUME SIGNAL: HIGH VOLUME CONFIRMATION - Strong interest")
+                elif volume_ratio > 1.5:
+                    text_parts.append("VOLUME SIGNAL: Above-average volume - Moderate interest")
+                elif volume_ratio < 0.5:
+                    text_parts.append("VOLUME SIGNAL: Low volume - Lack of conviction")
+                else:
+                    text_parts.append("VOLUME SIGNAL: Normal volume levels")
+                
+                text_parts.append(f"\nDay Range: ${quote.get('dayLow', 0)} - ${quote.get('dayHigh', 0)}")
                 text_parts.append(f"52-Week Range: ${quote.get('yearLow', 0)} - ${quote.get('yearHigh', 0)}")
-                text_parts.append(f"Volume: {quote.get('volume', 0):,}")
-                text_parts.append(f"Average Volume: {quote.get('avgVolume', 0):,}")
                 text_parts.append(f"P/E Ratio: {quote.get('pe', 'N/A')}")
                 text_parts.append(f"EPS: ${quote.get('eps', 0)}")
                 text_parts.append(f"Market Cap: ${quote.get('marketCap', 0):,}")
                 text_parts.append(f"Beta: {quote.get('beta', 'N/A')}")
                 text_parts.append(f"Last Update: {quote.get('timestamp', 'N/A')}")
             
-            # Add technical indicators
+            # Add technical indicators with forced analysis
             if rsi_data and isinstance(rsi_data, list) and len(rsi_data) > 0:
-                text_parts.append(f"\\n=== TECHNICAL INDICATORS ===")
+                text_parts.append(f"\n=== TECHNICAL INDICATORS - CITE THESE EXACT VALUES ===")
                 latest_rsi = rsi_data[0]
-                text_parts.append(f"RSI (14): {latest_rsi.get('rsi', 'N/A')}")
-                if latest_rsi.get('rsi'):
-                    rsi_val = float(latest_rsi['rsi'])
-                    if rsi_val > 70:
-                        text_parts.append("RSI Signal: Overbought (>70)")
-                    elif rsi_val < 30:
-                        text_parts.append("RSI Signal: Oversold (<30)")
+                rsi_val = latest_rsi.get('rsi', 'N/A')
+                text_parts.append(f"RSI (14-period): {rsi_val}")
+                
+                if rsi_val != 'N/A':
+                    rsi_float = float(rsi_val)
+                    if rsi_float > 75:
+                        text_parts.append(f"RSI SIGNAL: EXTREMELY OVERBOUGHT at {rsi_float:.1f} - Consider selling pressure")
+                    elif rsi_float > 70:
+                        text_parts.append(f"RSI SIGNAL: OVERBOUGHT at {rsi_float:.1f} - Caution on new longs")
+                    elif rsi_float < 25:
+                        text_parts.append(f"RSI SIGNAL: EXTREMELY OVERSOLD at {rsi_float:.1f} - Potential bounce")
+                    elif rsi_float < 30:
+                        text_parts.append(f"RSI SIGNAL: OVERSOLD at {rsi_float:.1f} - Support expected")
                     else:
-                        text_parts.append("RSI Signal: Neutral")
+                        text_parts.append(f"RSI SIGNAL: NEUTRAL at {rsi_float:.1f} - No extreme reading")
             
             if macd_data and isinstance(macd_data, list) and len(macd_data) > 0:
                 latest_macd = macd_data[0]
-                text_parts.append(f"MACD: {latest_macd.get('macd', 'N/A')}")
-                text_parts.append(f"MACD Signal: {latest_macd.get('signal', 'N/A')}")
-                text_parts.append(f"MACD Histogram: {latest_macd.get('histogram', 'N/A')}")
+                macd_line = latest_macd.get('macd', 'N/A')
+                signal_line = latest_macd.get('signal', 'N/A')
+                histogram = latest_macd.get('histogram', 'N/A')
+                
+                text_parts.append(f"MACD LINE: {macd_line}")
+                text_parts.append(f"MACD SIGNAL LINE: {signal_line}")
+                text_parts.append(f"MACD HISTOGRAM: {histogram}")
+                
+                if macd_line != 'N/A' and signal_line != 'N/A':
+                    macd_float = float(macd_line)
+                    signal_float = float(signal_line)
+                    
+                    if macd_float > signal_float:
+                        text_parts.append(f"MACD SIGNAL: BULLISH - MACD ({macd_float:.4f}) above Signal ({signal_float:.4f})")
+                    else:
+                        text_parts.append(f"MACD SIGNAL: BEARISH - MACD ({macd_float:.4f}) below Signal ({signal_float:.4f})")
             
-            if bollinger_data and isinstance(bollinger_data, list) and len(bollinger_data) > 0:
+            if bollinger_data and isinstance(bollinger_data, list) and len(bollinger_data) > 0 and quote_data:
                 latest_bb = bollinger_data[0]
-                text_parts.append(f"Bollinger Bands Upper: {latest_bb.get('upperBand', 'N/A')}")
-                text_parts.append(f"Bollinger Bands Middle: {latest_bb.get('middleBand', 'N/A')}")
-                text_parts.append(f"Bollinger Bands Lower: {latest_bb.get('lowerBand', 'N/A')}")
+                bb_upper = latest_bb.get('upperBand', 'N/A')
+                bb_middle = latest_bb.get('middleBand', 'N/A') 
+                bb_lower = latest_bb.get('lowerBand', 'N/A')
+                current_price = quote_data[0].get('price', 0)
+                
+                text_parts.append(f"BOLLINGER UPPER BAND: ${bb_upper}")
+                text_parts.append(f"BOLLINGER MIDDLE BAND: ${bb_middle}")
+                text_parts.append(f"BOLLINGER LOWER BAND: ${bb_lower}")
+                text_parts.append(f"CURRENT PRICE vs BANDS: ${current_price}")
+                
+                if bb_upper != 'N/A' and bb_lower != 'N/A':
+                    bb_upper_float = float(bb_upper)
+                    bb_lower_float = float(bb_lower)
+                    price_float = float(current_price)
+                    
+                    if price_float > bb_upper_float:
+                        text_parts.append(f"BOLLINGER SIGNAL: BREAKOUT ABOVE - Price ${price_float} > Upper ${bb_upper_float}")
+                    elif price_float < bb_lower_float:
+                        text_parts.append(f"BOLLINGER SIGNAL: BREAKDOWN BELOW - Price ${price_float} < Lower ${bb_lower_float}")
+                    else:
+                        text_parts.append(f"BOLLINGER SIGNAL: WITHIN BANDS - Price between ${bb_lower_float} and ${bb_upper_float}")
             
             if stochastic_data and isinstance(stochastic_data, list) and len(stochastic_data) > 0:
                 latest_stoch = stochastic_data[0]
-                text_parts.append(f"Stochastic %K: {latest_stoch.get('k', 'N/A')}")
-                text_parts.append(f"Stochastic %D: {latest_stoch.get('d', 'N/A')}")
+                k_value = latest_stoch.get('k', 'N/A')
+                d_value = latest_stoch.get('d', 'N/A')
+                text_parts.append(f"STOCHASTIC %K: {k_value}")
+                text_parts.append(f"STOCHASTIC %D: {d_value}")
+                
+                if k_value != 'N/A':
+                    k_float = float(k_value)
+                    if k_float > 80:
+                        text_parts.append(f"STOCHASTIC SIGNAL: OVERBOUGHT at {k_float:.1f}")
+                    elif k_float < 20:
+                        text_parts.append(f"STOCHASTIC SIGNAL: OVERSOLD at {k_float:.1f}")
+                    else:
+                        text_parts.append(f"STOCHASTIC SIGNAL: NEUTRAL at {k_float:.1f}")
             
             # Add analyst ratings
             if ratings_data and isinstance(ratings_data, list) and len(ratings_data) > 0:
@@ -447,8 +520,16 @@ async def fetch(id: str) -> Dict[str, Any]:
                 text_parts.append(f"Days to Cover: {short_data.get('daysToCover', 'N/A')}")
                 text_parts.append(f"Short Interest Date: {short_data.get('date', 'N/A')}")
             
+            # Add trading decision prompt at the end
+            text_parts.append("\n=== TRADING DECISION REQUIRED ===")
+            text_parts.append("Based on the EXACT numbers above, you must provide:")
+            text_parts.append("1. Decision: Trade, Monitor, or Ignore")
+            text_parts.append("2. Cite specific RSI value, MACD values, volume ratio, and price levels")
+            text_parts.append("3. Reference the actual numbers in your analysis")
+            text_parts.append("4. Example: 'Trade - RSI at 25.4 shows oversold, MACD at -0.45 below signal -0.32, volume 2.3x average confirms interest'")
+            
             # Combine all text
-            full_text = "\\n".join(text_parts) if text_parts else "No information available"
+            full_text = "\n".join(text_parts) if text_parts else "No information available"
             
             # Build metadata with comprehensive trading data
             metadata = {}
