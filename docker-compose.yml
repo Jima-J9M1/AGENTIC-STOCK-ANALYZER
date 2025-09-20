@@ -8,6 +8,8 @@ services:
       - "8000:8000" # Host:Container
     expose:   # expose only inside the Docker network
       - "8000"
+    env_file:
+      - .env  # Load environment variables from .env file
     environment:
       - FMP_API_KEY=${FMP_API_KEY:-demo}
       - TRANSPORT=${TRANSPORT:-sse}

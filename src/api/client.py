@@ -8,10 +8,6 @@ from typing import Dict, Any, Optional
 # FMP API Base URL
 FMP_BASE_URL = "https://financialmodelingprep.com/stable"
 
-# Default API key - try to get from environment or use placeholder
-DEFAULT_API_KEY = os.environ.get("FMP_API_KEY", "demo")
-
-
 async def fmp_api_request(endpoint: str, params: Dict = None, api_key: str = None) -> Dict:
     """
     Make a request to the Financial Modeling Prep API
@@ -30,8 +26,11 @@ async def fmp_api_request(endpoint: str, params: Dict = None, api_key: str = Non
     if params is None:
         params = {}
     
-    # Use provided API key or default
-    params["apikey"] = api_key if api_key is not None else DEFAULT_API_KEY
+    # Use provided API key or get from environment dynamically
+    if api_key is None:
+        api_key = os.environ.get("FMP_API_KEY", "demo")
+    
+    params["apikey"] = api_key
     
     try:
         async with httpx.AsyncClient() as client:

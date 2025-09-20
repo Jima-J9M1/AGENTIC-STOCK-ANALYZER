@@ -5,8 +5,12 @@ This server provides tools, resources, and prompts for interacting with
 the Financial Modeling Prep API via the Model Context Protocol.
 """
 import os
+import sys
 import pathlib
 from dotenv import load_dotenv
+
+# Add the parent directory to Python path so we can import src modules
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Load environment variables from .env file
 env_path = pathlib.Path(__file__).parent.parent / '.env'
